@@ -85,6 +85,9 @@ def main():
             print("PASS  测试未留下任何副作用（git status 与开跑前一致）")
             if not after:
                 print("      且工作区当前是干净的")
+            print("      边界：只看得到 git 可见的变化。被 .gitignore 忽略的产物")
+            print("      （seed.local.js、临时截图目录等）不在本断言覆盖范围内——")
+            print("      它们不进仓库，但也意味着本工具证明不了它们没被动过。")
 
     print("\n全部通过" if bad == 0 else "\n失败 %d 项" % bad)
     return 1 if bad else 0
