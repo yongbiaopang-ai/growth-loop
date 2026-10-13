@@ -161,7 +161,9 @@ GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real \
 - **不要提交任何个人数据**：体重、资产金额、真实姓名、本机绝对路径、API Key。个人数字一律写进 `seed.local.js`。
 - **红线自检是全自动的**：`node tools/smoke_test.js` 会从 `seed.local.js` **派生**个人 token 扫描全仓库（加字段即自动纳入），并用 `tools/neutral-vocabulary.txt` 做单位数字白名单——后者能抓住 `seed.local.js` 之外的漏网值。命中即 FAIL。
 - 边界判定写在 [`docs/adr/0004`](docs/adr/0004-个人数据边界与红线自检.md)：哪些算个人信息、哪些（如 `A2`、`高中水平`）已判定为可公开。
-- 改 `sw.js` 缓存列表时记得升 `VERSION`；改完跑一次 `node tools/smoke_test.js`。
+- 改 `sw.js` 缓存列表时记得升 `VERSION`；改完跑一次 `python tools/check_all.py`。
+- **里程碑工作走分支**：`feat(...)` / `fix(...)` / `perf(...)` 提交只能落在里程碑分支上，进 main 一律通过 `merge`。`tools/check_main_commits.py`（已接进 `check_all.py`）会检查 main 的直系历史里没有功能提交——这条是机械检查，不靠自觉：此前有两次功能提交误落到 main，各自修过一次。
+- **规则文件里不得写出会被自己规则命中的字面量**：给扫描规则写注释、写 ADR 举例时，一律改写成不含字面的说法。这条被绊过三次（见 `docs/adr/0004`）。
 
 ## License
 

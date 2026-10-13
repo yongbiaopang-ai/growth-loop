@@ -63,6 +63,7 @@ def main():
         print("── 开跑前工作区 ──\n   %s" % ("干净" if not before else "已有 %d 处改动（开发中途正常）" % len(before)))
 
     bad += 1 if run([sys.executable, "tools/test_xlsx_import.py"], "导入器测试（Python）") != 0 else 0
+    bad += 1 if run([sys.executable, "tools/check_main_commits.py"], "工作流检查（main 上不许有功能提交）") != 0 else 0
 
     node = os.environ.get("GL_NODE") or shutil.which("node")
     if node:
