@@ -154,6 +154,24 @@ const leakB = [];
 scan.forEach(({ p, text }) => tok(text, STRICT_UNIT_RE).forEach((t) => { if (!vocab.has(t)) leakB.push(p + " ← " + t); }));
 check("单位数字都在中性词汇表内", leakB.length === 0, [...new Set(leakB)].slice(0, 6).join("; "));
 
+/* 结构性规则（不靠词表）：绝对路径与本机用户名。
+ * 用户名从 os.homedir() 现场推导，所以仓库里既没有个人数据，也没有"该防谁"的线索。
+ * 正则要排除网址协议那一串（https 后面的斜杠不是盘符）。
+ * 注意：注释里也不能写出会被这条规则命中的字面例子——本仓库已被这个坑绊过两次。 */
+const os = require("os");
+const homeName = path.basename(os.homedir());
+const ABS_RE = /(^|[^A-Za-z])[A-Za-z]:[\\/]|\/Users\/|\/home\//;
+const leakC = [];
+scan.forEach(({ p, text }) => {
+  text.split("\n").forEach((ln, i) => {
+    if (ABS_RE.test(ln)) leakC.push(p + ":" + (i + 1) + " ← 绝对路径");
+    if (homeName && homeName.length >= 2 && ln.includes(homeName)) leakC.push(p + ":" + (i + 1) + " ← 本机用户名");
+  });
+});
+check("不含绝对路径与本机用户名", leakC.length === 0, [...new Set(leakC)].slice(0, 5).join("; "));
+// 规则自检：能命中盘符路径，且不会把网址协议误判为盘符
+check("路径规则自检", ABS_RE.test("D:" + String.fromCharCode(92) + "dir") && !ABS_RE.test("https://example.com"));
+
 check("seed.local.js 已被 gitignore", fs.readFileSync(path.join(ROOT, ".gitignore"), "utf8").includes("seed.local.js"));
 check("提供了本地覆盖模板", fs.existsSync(path.join(ROOT, "seed.local.example.js")));
 

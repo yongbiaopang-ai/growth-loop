@@ -317,7 +317,8 @@ def make_sample():
         })
     return {
         "schema": SCHEMA,
-        "generated": dt.datetime.now().isoformat(timespec="seconds"),
+        # 合成样例是要提交的文件，时间戳必须固定，否则每次生成都让工作区变脏
+        "generated": "sample",
         "source": {"file": "（合成示例数据，非真实记录）", "sheets": []},
         "plan": {"start": "2026-10-19", "weeks": 26},
         "baseline": {},
@@ -341,7 +342,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     data = make_sample() if args.sample else convert(args.book)
-    with open(args.out, "w", encoding="utf-8") as f:
+    # newline="\n"：否则 Windows 上会写成 CRLF，git 每次都要改写工作区
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print(f"写出 {args.out}")
     print(f"  指标月份 {len(data['metrics'])} 个 · 周记录 {len(data['weekly'])} 条 · "

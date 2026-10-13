@@ -16,8 +16,21 @@ import xlsx_to_json as X  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-REAL = sys.argv[1] if len(sys.argv) > 1 else None
-REAL = REAL or r"C:\Users\庞勇彪\.dsh\bot\workspace\半年计划打卡表_26周.xlsx"
+
+# 真实表路径：不写死在代码里（那会把本机路径与用户名带进开源仓库）。
+# 优先命令行参数 → 环境变量 → 仓库上一级目录里的同名文件。
+# 找不到就跳过这组用例（开源用户没有这张表也必须能跑通），而不是失败。
+def resolve_real():
+    if len(sys.argv) > 1:
+        return sys.argv[1]
+    env = os.environ.get("GL_REAL_XLSX")
+    if env:
+        return env
+    guess = os.path.join(os.path.dirname(ROOT), "半年计划打卡表_26周.xlsx")
+    return guess if os.path.exists(guess) else None
+
+
+REAL = resolve_real()
 
 failed = 0
 
@@ -37,8 +50,7 @@ def tmpfile(suffix=".xlsx"):
 
 # ---------- 1. 真实表 ----------
 print("— 1 真实表结构对齐 —")
-if os.path.exists(REAL):
-    src = openpyxl.load_workbook(REAL, data_only=True)
+if REAL and os.path.exists(REAL):
     d = X.convert(REAL)
     check("schema 正确", d["schema"] == "growth-loop.import.v1")
     check("工作表全部识别", len(d["warnings"]) == 0, d["warnings"])
@@ -56,7 +68,7 @@ if os.path.exists(REAL):
     check("工作表名原样保留", len(d["source"]["sheets"]) == 8, len(d["source"]["sheets"]))
     check("真实表里没有多余的 week 字段", set(d["weekly"][0].keys()) <= {"week", "monday", "sunday", "stage", "aiTask", "financeTask", "reading", "hours", "workout", "calorieDays", "listenDays", "speakCount", "aiHours", "reviewed", "note"}, list(d["weekly"][0].keys()))
 else:
-    check("找到真实表", False, REAL)
+    print("SKIP  跳过真实表用例（没有这张表；用 GL_REAL_XLSX 或命令行参数指定路径）")
 
 
 # ---------- 2. 空表不崩 ----------
@@ -120,14 +132,21 @@ check("体脂逐月下降", sample["metrics"]["2027-09"]["bodyfat"] < w["bodyfat
       f'{w["bodyfat"]} → {sample["metrics"]["2027-09"]["bodyfat"]}')
 total_hours = sum(r["hours"] for r in sample["weekly"])
 check("周投入合计可算", 400 < total_hours < 800, round(total_hours, 1))
-check("合成数据不含任何真实值", all("庞" not in json.dumps(sample, ensure_ascii=False) for _ in [0]))
 
-# 写出合成样例，供应用"从文件导入"演示
-out = os.path.join(ROOT, "data", "sample.json")
-os.makedirs(os.path.dirname(out), exist_ok=True)
-with io.open(out, "w", encoding="utf-8") as f:
+# 测试不许改仓库文件（否则 git status 变脏）。写到临时目录，再与已提交的样例逐字节比对。
+tmp = tmpfile(".json")
+with io.open(tmp, "w", encoding="utf-8", newline="\n") as f:
     json.dump(sample, f, ensure_ascii=False, indent=2)
-check("写出合成样例 data/sample.json", os.path.exists(out))
+committed = os.path.join(ROOT, "data", "sample.json")
+if os.path.exists(committed):
+    same = open(committed, "rb").read() == open(tmp, "rb").read()
+    check("data/sample.json 与生成器逐字节一致", same,
+          "" if same else "重跑：python tools/xlsx_to_json.py --sample -o data/sample.json")
+    raw = open(committed, "rb").read()
+    check("样例文件是 LF 行尾", raw.count(b"\r\n") == 0, "CRLF=%d" % raw.count(b"\r\n"))
+else:
+    check("data/sample.json 存在", False, "跑：python tools/xlsx_to_json.py --sample -o data/sample.json")
+os.remove(tmp)
 
 print("\n全部通过" if failed == 0 else "\n失败 %d 项" % failed)
 sys.exit(0 if failed == 0 else 1)
