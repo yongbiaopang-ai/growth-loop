@@ -16,3 +16,7 @@ __pycache__/
 _chrome*/
 _c*/
 _*.png
+
+# 导入/生成物，含个人数据，不进仓库
+_*.json
+data/*.local.json

@@ -1,0 +1,5 @@
+# 统一按 LF 存进仓库，避免 Windows 检出时 CRLF 造成文件"被改动"的假象
+* text=auto eol=lf
+*.png binary
+*.xlsx binary
+*.docx binary

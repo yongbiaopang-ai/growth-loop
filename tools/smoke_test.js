@@ -82,6 +82,7 @@ function render(seedState, mutateSeed, opts) {
   out.theme = document.documentElement._attrs["data-theme"] || "";
   out.style = document.documentElement._attrs["data-style"] || "";
   out.sheet = els["#modal"] ? els["#modal"].innerHTML : "";
+  out.__gl = sandbox.__gl || null;
   out.store = store;
   return out;
 }
@@ -266,6 +267,28 @@ check("提示留空不等于 0", G.sheet.includes("留空表示当月没有这�
 const G2 = render({ v: 1, settings: {}, baseline: {}, checkins: {}, reviews: {}, metrics: { "2026-10": { bodyfat: 25 }, "2026-11": { bodyfat: 23 } } }, null, { search: "?open=metrics" });
 check("显示上一次的值与月份", G2.sheet.includes("上次 23%") && G2.sheet.includes("2026-11"));
 check("显示目标与上次的按钮", render(null, null, {}).trend.includes("填入「"));
+
+/* ---------- H：导入 xlsx 载荷（M1.5） ---------- */
+console.log("\n— H 导入 xlsx 载荷 —");
+const H = render(null, null, { search: "?test=1" });
+check("测试钩子已挂载", !!H.__gl && typeof H.__gl.applyImport === "function");
+if (H.__gl) {
+  check("M1 → 2026-10", H.__gl.monthKeyOf("M1") === "2026-10", H.__gl.monthKeyOf("M1"));
+  check("M12 → 2027-09", H.__gl.monthKeyOf("M12") === "2027-09", H.__gl.monthKeyOf("M12"));
+  check("已是 YYYY-MM 的原样返回", H.__gl.monthKeyOf("2026-12") === "2026-12");
+  H.__gl.applyImport({
+    schema: "growth-loop.import.v1",
+    metrics: { M1: { bodyfat: 25, weight: 70 }, "2026-12": { bodyfat: 20 } },
+    baseline: { "英语水平": "A2" }
+  });
+  let st = JSON.parse(H.__gl.dump());
+  check("指标按月落位", st.metrics["2026-10"] && st.metrics["2026-10"].bodyfat === 25 && st.metrics["2026-12"].bodyfat === 20);
+  check("基线补空字段", st.baseline["英语水平"] === "A2");
+  H.__gl.applyImport({ schema: "growth-loop.import.v1", metrics: { M1: { bodyfat: 19 } }, baseline: { "英语水平": "C1" } });
+  st = JSON.parse(H.__gl.dump());
+  check("重复导入不覆盖已有基线", st.baseline["英语水平"] === "A2");
+  check("重复导入合并同月指标", st.metrics["2026-10"].weight === 70 && st.metrics["2026-10"].bodyfat === 19);
+}
 
 /* ---------- 备份往返 ---------- */
 console.log("\n— 备份往返 —");
