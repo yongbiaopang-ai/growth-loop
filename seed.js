@@ -21,7 +21,14 @@ window.SEED = (function () {
     waistTarget: "腰围 ≤84cm",
     capital: "50 万防御型配置",
     cashflow: "3% → 1250/月，4% → 1667/月",
-    bondBatch: "债券底仓分 3 批建（约 20 万）"
+    bondBatch: "债券底仓分 3 批建（约 20 万）",
+    /* 指标目标值：只在这里定义，app.js 不许硬编码 target（由冒烟测试守着） */
+    bodyfatTarget: 15,
+    weightTargetKg: 62,
+    waistTargetCm: 84,
+    enHoursTarget: 150,
+    investTarget: 65,
+    sleepTarget: 7.5
   };
 
   /* ?local=0 时忽略本地覆盖，用于预览与截图 */
@@ -146,6 +153,16 @@ window.SEED = (function () {
     "睡眠优先：连续 3 天不足 7.5h，当天砍掉 AI 块"
   ];
 
+  /* 指标目标（趋势页用）。目标值来自 P，不写死在 app.js 里。 */
+  var METRICS = [
+    { key: "bodyfat",   label: "体脂 %",     unit: "%",  target: P.bodyfatTarget },
+    { key: "weight",    label: "体重 kg",    unit: "kg", target: P.weightTargetKg },
+    { key: "waist",     label: "腰围 cm",    unit: "cm", target: P.waistTargetCm },
+    { key: "enHours",   label: "英语累计 h", unit: "h",  target: P.enHoursTarget },
+    { key: "investPct", label: "建仓 %",     unit: "%",  target: P.investTarget },
+    { key: "sleep",     label: "睡眠 h",     unit: "h",  target: P.sleepTarget }
+  ];
+
   return {
     PLAN_START: PLAN_START,
     PLAN_WEEKS: PLAN_WEEKS,
@@ -160,6 +177,7 @@ window.SEED = (function () {
     MILESTONES: MILESTONES,
     W1: W1,
     RULES: RULES,
+    METRICS: METRICS,
     isLocal: !!local && Object.keys(local).length > 0
   };
 })();
