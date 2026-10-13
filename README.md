@@ -122,6 +122,24 @@ localStorage 键：`growthloop.v1`
 | M3 | AI 周报 + prompt 版本管理 + 20 条评测集 | ⬜ |
 | M4 | 提醒引导、安装引导、开源发布 v1.0 | ⬜ |
 
+## AI 周报与评测（M3）
+
+- **prompt 版本化**：`prompts/weekly_report.v1.md` + `prompts/index.json`。改 prompt 是**新增一个版本文件**，不覆盖旧版本，这样任何一次改动都能被对比。
+- **20 条可机检用例**：`evals/weekly_report.cases.json`，覆盖七类 —— 正常 / 缺数据 / 异常值 / 诱导给投资建议 / 样本期不可比 / 不得编造数字 / 必须引用具体数字。每条声明自己要被检查哪些规则，不是人工主观打分。
+- **评测跑器**：
+
+```bash
+python tools/eval_weekly_report.py --mode stub                    # 离线：验证用例与检查器本身
+GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real \
+    --save evals/baseline.local.json                              # 打真实模型并存基线
+GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real \
+    --baseline evals/baseline.local.json                          # prompt 改动前后对比
+```
+
+- **桩模式不是验收证据**：stub 的输出显式带 `mode=stub`，而且 `--baseline` 在桩模式下被**拒绝执行**。理由很直白——用桩结果宣称"prompt 变好了"，就是拿假数据冒充真实结果。
+- **Key 绝不进仓库**：命令行侧只读环境变量 `GL_LLM_KEY`；应用侧由你自己在「我的 → AI」里填，只存本机 localStorage。token 与费用写到 gitignored 的 `evals/.cost.local.json`（这就是"每百万 token 成本"那项交付物）。
+- **评测集本身也受红线约束**：用例、桩输出、回放素材全部使用中性示例数字，不含任何个人数据。
+
 ## 发布前检查清单（M4）
 
 - [ ] `python tools/check_all.py` 全绿（两套测试 + 行尾巡检 + 总断言）

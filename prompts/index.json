@@ -1,0 +1,12 @@
+{
+  "schema": "growth-loop.prompts.v1",
+  "prompts": [
+    {
+      "id": "weekly_report",
+      "current": "v1",
+      "versions": [
+        { "version": "v1", "file": "weekly_report.v1.md", "date": "2026-10-13", "note": "首版：三段式 + 六条硬纪律" }
+      ]
+    }
+  ]
+}

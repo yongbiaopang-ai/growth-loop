@@ -17,6 +17,8 @@ _chrome*/
 _c*/
 _*.png
 
-# 导入/生成物，含个人数据，不进仓库
+# 瀵煎叆/鐢熸垚鐗╋紝鍚釜浜烘暟鎹紝涓嶈繘浠撳簱
 _*.json
 data/*.local.json
+evals/*.local.json
+evals/baseline.local.json
