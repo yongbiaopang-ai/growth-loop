@@ -147,6 +147,8 @@ main { padding: 12px; }
 .gcell.l4 { background: var(--brand-grad); color: #fff; font-weight: 700; }
 
 .stat-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-row.compact { gap: 6px; }
+.stat-row.compact .stat { min-width: 54px; padding: 8px 4px; }
 .stat { flex: 1 1 0; min-width: 72px; background: var(--fill); border-radius: var(--r-btn); padding: 10px; text-align: center; }
 .stat b { display: block; font-size: 18px; font-weight: 800; }
 .stat span { font-size: var(--fs-tag); color: var(--muted); }

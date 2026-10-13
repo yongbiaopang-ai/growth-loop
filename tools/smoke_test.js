@@ -22,7 +22,7 @@ function mkEl(sel) {
   const el = {
     sel, innerHTML: "", value: "", files: [], style: {}, _attrs: {},
     classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
-    addEventListener() {}, querySelectorAll() { return []; }, querySelector() { return null; },
+    addEventListener() {}, querySelectorAll() { return []; }, querySelector(sel) { return mkEl(sel + " *"); },
     setAttribute(k, v) { el._attrs[k] = String(v); },
     getAttribute(k) { return el._attrs[k] != null ? el._attrs[k] : null; },
     focus() {}, click() {}, appendChild() {}, remove() {}
@@ -57,7 +57,8 @@ function render(seedState, mutateSeed, opts) {
     navigator: {}, location: { hash: "", search: opts.search || "", protocol: "http:" },
     console, alert() {}, confirm() { return true; }, setTimeout,
     Blob: function () {}, URL: { createObjectURL: () => "" }, FileReader: function () {},
-    scrollTo() {}, Date, JSON, Math, Object, Array, String, Number, Boolean, parseInt, parseFloat, isNaN
+    scrollTo() {}, Date, JSON, Math, Object, Array, String, Number, Boolean, parseInt, parseFloat, isNaN,
+    URLSearchParams
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
@@ -80,6 +81,7 @@ function render(seedState, mutateSeed, opts) {
   }
   out.theme = document.documentElement._attrs["data-theme"] || "";
   out.style = document.documentElement._attrs["data-style"] || "";
+  out.sheet = els["#modal"] ? els["#modal"].innerHTML : "";
   out.store = store;
   return out;
 }
@@ -153,6 +155,12 @@ check("单位数字都在中性词汇表内", leakB.length === 0, [...new Set(le
 
 check("seed.local.js 已被 gitignore", fs.readFileSync(path.join(ROOT, ".gitignore"), "utf8").includes("seed.local.js"));
 check("提供了本地覆盖模板", fs.existsSync(path.join(ROOT, "seed.local.example.js")));
+
+/* 目标值不许在 app.js 里硬编码——否则个人目标会绕过上面两条扫描（它们只认"数字+单位"） */
+const appSrc = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
+check("app.js 不硬编码指标目标", !/target:\s*\d/.test(appSrc));
+check("app.js 的目标取自 seed", /var METRICS = S\.METRICS/.test(appSrc));
+check("seed 导出 METRICS", /METRICS:\s*METRICS/.test(fs.readFileSync(path.join(ROOT, "seed.js"), "utf8")));
 
 /* ---------- A：空数据 ---------- */
 console.log("\n— A 空数据（现在的真实状态）—");
@@ -238,6 +246,26 @@ if (!fs.existsSync(path.join(ROOT, "seed.local.js"))) {
   const E2 = render(null, null, { withLocal: true, search: "?local=0" });
   check("?local=0 强制用中性模板", E2.plan.includes("50 万防御型配置"));
 }
+
+/* ---------- F：周复盘面板 ---------- */
+console.log("\n— F 周复盘面板 —");
+const F = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; }, { search: "?open=review" });
+check("带本周实际统计", F.sheet.includes("已打卡天") && F.sheet.includes("本周投入") && F.sheet.includes("/7"));
+check("四条线都在表单里", ["健身：", "英语：", "理财：", "AI："].every((s) => F.sheet.includes(s)));
+check("有下周最重要的一件事", F.sheet.includes("下周最重要的一件事"));
+check("有参考提示不靠记忆", F.sheet.includes("照着它写比凭记忆准"));
+
+/* ---------- G：指标录入面板 ---------- */
+console.log("\n— G 指标录入面板 —");
+const G = render(null, null, { search: "?open=metrics" });
+check("指标面板显示目标", G.sheet.includes("目标 15%"));
+check("指标面板标注未录过", G.sheet.includes("还没录过"));
+check("输入框是数字类型", G.sheet.includes('type="number"') && G.sheet.includes('inputmode="decimal"'));
+check("有月份选择", G.sheet.includes('type="month"'));
+check("提示留空不等于 0", G.sheet.includes("留空表示当月没有这一项"));
+const G2 = render({ v: 1, settings: {}, baseline: {}, checkins: {}, reviews: {}, metrics: { "2026-10": { bodyfat: 25 }, "2026-11": { bodyfat: 23 } } }, null, { search: "?open=metrics" });
+check("显示上一次的值与月份", G2.sheet.includes("上次 23%") && G2.sheet.includes("2026-11"));
+check("显示目标与上次的按钮", render(null, null, {}).trend.includes("填入「"));
 
 /* ---------- 备份往返 ---------- */
 console.log("\n— 备份往返 —");

@@ -9,14 +9,8 @@
   var KEY = "growthloop.v1";
   var $ = function (sel) { return document.querySelector(sel); };
 
-  var METRICS = [
-    { key: "bodyfat",  label: "体脂 %",     unit: "%",  target: 15 },
-    { key: "weight",   label: "体重 kg",    unit: "kg", target: 60 },
-    { key: "waist",    label: "腰围 cm",    unit: "cm", target: 82 },
-    { key: "enHours",  label: "英语累计 h", unit: "h",  target: 150 },
-    { key: "investPct", label: "建仓 %",    unit: "%",  target: 65 },
-    { key: "sleep",    label: "睡眠 h",     unit: "h",  target: 7.5 }
-  ];
+  /* 指标定义来自 seed.js（目标值不写死在这里，个人目标由 seed.local.js 覆盖） */
+  var METRICS = S.METRICS;
 
   /* ---------------- 日期 ---------------- */
   function pad(n) { return String(n).padStart(2, "0"); }
@@ -115,6 +109,36 @@
     if (!isDecided(d)) d = addDays(d, -1);
     while (isDecided(d) && n < 400) { n++; d = addDays(d, -1); }
     return n;
+  }
+
+  /* 某周的统计，供周复盘参考，省得写复盘时还要自己回忆 */
+  function weekStats(mon) {
+    var t0 = today(), days = 0, mins = 0, planned = 0, byDomain = {}, doneItems = 0;
+    for (var i = 0; i < 7; i++) {
+      var d = addDays(mon, i);
+      if (d > t0) continue;
+      if (isDecided(d)) days++;
+      mins += doneMinutes(d);
+      tasksOf(d).forEach(function (t) {
+        planned += t.minutes;
+        var c = cell(d, t.id);
+        if (c && c.s !== "skip") {
+          doneItems++;
+          byDomain[t.domain] = (byDomain[t.domain] || 0) + 1;
+        }
+      });
+    }
+    return { days: days, hours: (mins / 60).toFixed(1), byDomain: byDomain, doneItems: doneItems };
+  }
+
+  /* 某个指标最近一次记录的值 */
+  function lastMetric(key) {
+    var months = Object.keys(state.metrics).sort();
+    for (var i = months.length - 1; i >= 0; i--) {
+      var v = state.metrics[months[i]][key];
+      if (typeof v === "number" && !isNaN(v)) return { v: v, month: months[i] };
+    }
+    return null;
   }
 
   /* ---------------- 今日 ---------------- */
@@ -358,7 +382,9 @@
         '<span>最新 ' + pts[pts.length - 1].v + m.unit + "（" + pts[pts.length - 1].x + "）</span>" +
         '<span>目标 ' + m.target + m.unit + '</span></div>';
     }
-    html += '<button class="btn wide" id="btn-metric">录入本月指标</button></div>';
+    html += '<div class="btns" style="margin-top:8px">' +
+      '<button class="btn primary" id="btn-metric-one">填入「' + m.label + '」</button>' +
+      '<button class="btn ghost" id="btn-metric">全部指标</button></div></div>';
 
     html += '<div class="card"><div class="card-title">26 周完成情况</div><div class="grid26">';
     var t0 = today();
@@ -390,7 +416,8 @@
     Array.prototype.forEach.call(document.querySelectorAll("#view-trend .chip"), function (b) {
       b.addEventListener("click", function () { trendKey = b.getAttribute("data-metric"); renderTrend(); });
     });
-    $("#btn-metric").addEventListener("click", openMetricsSheet);
+    $("#btn-metric-one").addEventListener("click", function () { openMetricsSheet(trendKey); });
+    $("#btn-metric").addEventListener("click", function () { openMetricsSheet(null); });
   }
 
   function chartSvg(pts, target) {
@@ -506,13 +533,14 @@
     function close() { box.classList.remove("on"); box.innerHTML = ""; }
   }
 
-  function openForm(title, fields, values, onSave) {
+  function openForm(title, fields, values, onSave, extraHtml) {
     var box = $("#modal");
-    var html = '<div class="modal-mask"></div><div class="sheet"><div class="sheet-title">' + title + '</div>';
+    var html = '<div class="modal-mask"></div><div class="sheet"><div class="sheet-title">' + title + '</div>' + (extraHtml || "");
     fields.forEach(function (f) {
       var v = values && values[f.key] != null ? esc(values[f.key]) : "";
       html += '<div class="field"><label>' + f.label + '</label>';
       if (f.type === "textarea") html += '<textarea id="f-' + f.key + '">' + v + '</textarea>';
+      else if (f.type === "number") html += '<input id="f-' + f.key + '" type="number" inputmode="decimal" step="any" value="' + v + '" placeholder="' + esc(f.ph || "") + '">';
       else html += '<input id="f-' + f.key + '" type="' + (f.type || "text") + '" value="' + v + '" placeholder="' + esc(f.ph || "") + '">';
       html += '</div>';
     });
@@ -522,8 +550,14 @@
     box.querySelector(".modal-mask").addEventListener("click", close);
     $("#form-cancel").addEventListener("click", close);
     $("#form-ok").addEventListener("click", function () {
-      var out = {};
-      fields.forEach(function (f) { var el = $("#f-" + f.key); out[f.key] = el ? el.value.trim() : ""; });
+      var out = {}, bad = null;
+      fields.forEach(function (f) {
+        var el = $("#f-" + f.key);
+        var v = el ? String(el.value).trim() : "";
+        if (f.type === "number" && v !== "" && isNaN(Number(v))) bad = f.label;
+        out[f.key] = v;
+      });
+      if (bad) { alert("「" + bad + "」不是数字，请检查后再保存。"); return; }
       close(); onSave(out);
     });
     function close() { box.classList.remove("on"); box.innerHTML = ""; }
@@ -532,39 +566,57 @@
   function openReview(dateStr) {
     var key = mondayOf(dateStr);
     var cur = state.reviews[key] || {};
+    var st = weekStats(key);
+    var d = S.DOMAINS;
+    var stats = '<div class="stat-row compact" style="margin-bottom:12px">' +
+      '<div class="stat"><b>' + st.days + '/7</b><span>已打卡天</span></div>' +
+      '<div class="stat"><b>' + st.hours + 'h</b><span>本周投入</span></div>' +
+      '<div class="stat"><b>' + (st.byDomain.fitness || 0) + '</b><span>健身项</span></div>' +
+      '<div class="stat"><b>' + (st.byDomain.english || 0) + '</b><span>英语项</span></div>' +
+      '<div class="stat"><b>' + (st.byDomain.ai || 0) + '</b><span>AI 项</span></div>' +
+      '</div><div class="sub" style="margin-bottom:12px">参考：上面是本周实际数字，照着它写比凭记忆准。</div>';
     var fields = [
-      { key: "fitness", label: "健身：做到 / 没做到" },
-      { key: "english", label: "英语：做到 / 没做到" },
-      { key: "finance", label: "理财：做到 / 没做到" },
-      { key: "ai", label: "AI：做到 / 没做到" },
+      { key: "fitness", label: "健身：做到 / 没做到", ph: "例：5/5 完成，深蹲加了 " + "2.5kg" },
+      { key: "english", label: "英语：做到 / 没做到", ph: "例：只精听 2 天，两次都卡在加班" },
+      { key: "finance", label: "理财：做到 / 没做到", ph: "例：体检做完了，应急金缺口待算" },
+      { key: "ai", label: "AI：做到 / 没做到", ph: "例：骨架跑通，写了 1 页 ADR" },
       { key: "text", label: "下周最重要的一件事", type: "textarea" }
     ];
     openForm("周复盘 · " + key + " ~ " + addDays(key, 6), fields, cur, function (v) {
-      var text = v.text || [v.fitness, v.english, v.finance, v.ai].filter(Boolean).join("；");
+      var text = (v.text || "").trim() || [v.fitness, v.english, v.finance, v.ai].filter(Boolean).join("；");
       state.reviews[key] = Object.assign({}, v, { text: text, ts: Date.now() });
       setCell(dateStr, "weekly_review", { s: "done", ts: Date.now() });
       save(); renderToday();
-    });
+    }, stats);
   }
 
-  function openMetricsSheet() {
+  function openMetricsSheet(onlyKey) {
     var month = monthOf(today());
     var cur = state.metrics[month] || {};
-    var fields = [{ key: "__month", label: "月份（YYYY-MM）" }].concat(
-      METRICS.map(function (m) { return { key: m.key, label: m.label + "（目标 " + m.target + m.unit + "）" }; })
-    );
-    var values = Object.assign({}, cur); values.__month = month;
-    openForm("录入指标", fields, values, function (v) {
+    var list = onlyKey ? METRICS.filter(function (m) { return m.key === onlyKey; }) : METRICS;
+    var fields = [{ key: "__month", label: "月份", type: "month" }];
+    list.forEach(function (m) {
+      var last = lastMetric(m.key);
+      fields.push({
+        key: m.key,
+        type: "number",
+        label: m.label + "（目标 " + m.target + m.unit +
+          (last ? " · 上次 " + last.v + m.unit + "（" + last.month + "）" : " · 还没录过") + "）"
+      });
+    });
+    var values = Object.assign({}, cur);
+    values.__month = month;
+    openForm(onlyKey ? "录入「" + list[0].label + "」" : "录入本月指标", fields, values, function (v) {
       var k = v.__month || month;
       if (!state.metrics[k]) state.metrics[k] = {};
-      METRICS.forEach(function (m) {
+      list.forEach(function (m) {
         var raw = v[m.key];
         if (raw === "" || raw == null) delete state.metrics[k][m.key];
         else state.metrics[k][m.key] = Number(raw);
       });
       if (!Object.keys(state.metrics[k]).length) delete state.metrics[k];
       save(); renderTrend();
-    });
+    }, '<div class="sub" style="margin-bottom:12px">留空表示当月没有这一项，不会记成 0。目标只是参照，不用改。</div>');
   }
 
   function openBaselineSheet() {
@@ -650,6 +702,11 @@
     });
     var hash = (location.hash || "").replace("#", "");
     showTab(TABS.indexOf(hash) > -1 ? hash : "today");
+
+    /* 预览/测试用：?open=review 或 ?open=metrics 直接打开对应面板 */
+    var open = param("open");
+    if (open === "review") openReview(selDate);
+    if (open === "metrics") openMetricsSheet(null);
 
     if (window.matchMedia) {
       try {
