@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Growth Loop · 前端设计稿 v1</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="themes.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 24px 60px;
+    background: #e9edf2; color: #1b1d21;
+    font: 14px/1.55 -apple-system, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  }
+  .board-head { max-width: 1500px; margin: 0 auto 26px; }
+  .board-head h1 { font-size: 24px; margin: 0 0 6px; color: #1f4e79; }
+  .board-head p { margin: 4px 0; color: #5b6470; }
+  .board-head .k { font-size: 12px; color: #6b7280; }
+  .grid { max-width: 1500px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 26px 30px; align-items: flex-start; }
+  figure { margin: 0; }
+  figcaption { margin-bottom: 8px; font-size: 13px; }
+  figcaption b { color: #1f4e79; }
+  figcaption span { display: block; color: #6b7280; font-size: 12px; }
+  .scr {
+    width: 375px; height: 780px; background: var(--bg);
+    border: 9px solid #22262c; border-radius: 32px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .hd {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--brand); color: #fff; padding: 11px 14px; flex: 0 0 auto;
+  }
+  .hd b { font-size: 15px; letter-spacing: .3px; }
+  .hd i { font-style: normal; font-size: 11px; opacity: .85; }
+  .bd { flex: 1 1 auto; padding: 12px; overflow: hidden; }
+  .bd.scroll { overflow-y: auto; }
+  .tabbar b s { font-size: 16px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+  .prog { display: flex; align-items: center; gap: 14px; }
+  .prog .txt b { font-size: 16px; }
+  .chart { width: 100%; height: 128px; display: block; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); }
+  .chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field textarea {
+    width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 10px;
+    font: inherit; font-size: 14px; background: var(--card); color: var(--text);
+  }
+  .field textarea { min-height: 56px; resize: none; }
+  .four { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mini {
+    background: var(--fill); border-radius: 10px; padding: 9px 10px; font-size: 12px; color: #3d444d;
+  }
+  .mini b { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+  .kv { display: flex; justify-content: space-between; font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .kv:last-child { border-bottom: 0; }
+  .kv span { color: var(--muted); }
+  .banner { display: flex; gap: 8px; align-items: center; font-size: 12px; padding: 9px 11px; border-radius: 10px; background: #fff8e6; border: 1px solid #ffe8a3; color: #8a6100; }
+  .tl { border-left: 2px solid var(--line); margin-left: 6px; padding-left: 14px; }
+  .tl .it { position: relative; padding-bottom: 12px; }
+  .tl .it::before { content: ""; position: absolute; left: -20px; top: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--brand); }
+  .tl .it.w4::before { background: #adb5bd; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div class="board-head">
+  <h1>Growth Loop · 前端设计稿 v1</h1>
+  <p>四页结构：<b>今日 · 计划 · 趋势 · 我的</b>。手机优先，一屏一件事，打卡主路径 ≤ 2 次点击。</p>
+  <p class="k">设计 token 见 design/tokens.css（应用与设计稿共用）。所有状态、空态与深色模式都在下面第 8、9 屏。有问题直接对着屏号说。</p>
+</div>
+
+<div class="grid">
+
+  <!-- ① 今日 · 方案 A -->
+  <figure>
+    <figcaption><b>① 今日 · 方案 A（推荐）</b><span>卡片式：一眼看清今天要做什么、为什么做</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>成长打卡</b><i>第 1/26 周 · M1 体检月</i></div>
+      <div class="bd">
+        <div class="strip">
+          <div class="d today"><i>一</i><b>19</b><span class="m"></span></div>
+          <div class="d"><i>二</i><b>20</b><span class="m"></span></div>
+          <div class="d"><i>三</i><b>21</b><span class="m"></span></div>
+          <div class="d"><i>四</i><b>22</b><span class="m"></span></div>
+          <div class="d"><i>五</i><b>23</b><span class="m"></span></div>
+          <div class="d"><i>六</i><b>24</b><span class="m"></span></div>
+          <div class="d"><i>日</i><b>25</b><span class="m"></span></div>
+        </div>
+
+        <div class="card" style="margin-top:10px">
+          <div class="prog">
+            <div class="ring" style="--p:67"><b>2/3</b></div>
+            <div class="txt">
+              <b>今天还差 1 项</b>
+              <div class="sub" style="margin-top:2px">已投入 115 分钟 · 预计还可 90 分钟</div>
+            </div>
+          </div>
+          <div class="badges" style="margin:10px 0 0">
+            <span class="tag warn">60% 起步周</span>
+            <span class="tag">18:00–23:00</span>
+          </div>
+        </div>
+
+        <div class="task done">
+          <div class="row">
+            <div class="name"><span class="dot" style="background:var(--fitness)"></span>力量 A</div>
+            <div class="meta">健身 · 75′</div>
+          </div>
+          <div class="hint">深蹲 / 卧推 / 划船，5–8 次 × 3–4 组</div>
+          <div class="btns">
+            <button class="btn on">✓ 已完成 20:05</button>
+            <button class="btn ghost">撤销</button>
+          </div>
+        </div>
+
+        <div class="task">
+          <div class="row">
+            <div class="name"><span class="dot" style="background:var(--english)"></span>英语精听</div>
+            <div class="meta">英语 · 60′</div>
+          </div>
+          <div class="hint">听 3 遍 → 看文本 → 跟读 3 遍 → 复述</div>
+          <div class="btns">
+            <button class="btn primary">完成</button>
+            <button class="btn ghost">降级 / 跳过</button>
+          </div>
+        </div>
+
+        <div class="task mvb">
+          <div class="row">
+            <div class="name"><span class="dot" style="background:var(--mvb)"></span>AI 块</div>
+            <div class="meta">AI · 90′</div>
+          </div>
+          <div class="hint">降级为 MVB：写 1 页 ADR</div>
+          <div class="btns">
+            <button class="btn on mvb">MVB 已记</button>
+            <button class="btn ghost">撤销</button>
+          </div>
+        </div>
+
+        <div class="banner">💡 加班到 21:00 之后：只做 MVB 也算数，别断链。</div>
+      </div>
+      <div class="tabbar">
+        <b class="on"><s>◉</s>今日</b><b><s>☰</s>计划</b><b><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ② 今日 · 方案 B -->
+  <figure>
+    <figcaption><b>② 今日 · 方案 B（备选）</b><span>极简清单：最快，但看不到任务说明</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>成长打卡</b><i>第 1/26 周</i></div>
+      <div class="bd">
+        <div class="card" style="text-align:center">
+          <div class="ring" style="--p:67; width:96px; height:96px; margin:4px auto 10px"><b style="font-size:19px">2/3</b></div>
+          <b>今天还差 1 项</b>
+          <div class="sub">已投入 115 分钟</div>
+        </div>
+        <div class="card" style="padding-top:4px; padding-bottom:4px">
+          <div class="li done"><span class="ck">✓</span><span class="t"><span class="dot" style="background:var(--fitness)"></span> 力量 A</span><span class="meta sub">75′</span></div>
+          <div class="li"><span class="ck">✓</span><span class="t"><span class="dot" style="background:var(--english)"></span> 英语精听</span><span class="meta sub">60′</span></div>
+          <div class="li mvb"><span class="ck">~</span><span class="t"><span class="dot" style="background:var(--ai)"></span> AI 块</span><span class="meta sub">MVB</span></div>
+        </div>
+        <div class="sub" style="text-align:center; margin-top:14px">点一下即完成，长按可降级或跳过</div>
+      </div>
+      <div class="tabbar">
+        <b class="on"><s>◉</s>今日</b><b><s>☰</s>计划</b><b><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ③ 计划 -->
+  <figure>
+    <figcaption><b>③ 计划</b><span>当前阶段 + 26 周 + 四条线目标 + 里程碑</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>计划</b><i>2026-10-19 → 2027-04-18</i></div>
+      <div class="bd scroll">
+        <div class="card">
+          <div class="card-title">M1 体检月 · 第 1 周<span class="tag warn">60% 起步</span></div>
+          <div class="sub">本周重点</div>
+          <div class="kv"><span>AI</span><b style="text-align:right;max-width:230px">Transformer + 评测口径；读 pit-guard 21 条</b></div>
+          <div class="kv"><span>理财</span><b style="text-align:right;max-width:230px">资产负债表 + 应急金</b></div>
+          <div class="kv"><span>读书</span><b>《小狗钱钱》</b></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">26 周进度</div>
+          <div class="phase">
+            <i class="now"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i>
+            <i class="p1"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i>
+            <i class="p1"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i>
+            <i class="p1"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i>
+            <i class="p1"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i>
+            <i class="p1"></i><i class="p1"></i><i class="p1"></i><i class="p1"></i>
+          </div>
+          <div class="legend"><span>W1 现在</span><span>★W4 基线</span><span>★W13 中期</span><span>★W26 大考</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">四条线 · M6 验收</div>
+          <div class="kv"><span><span class="dot" style="background:var(--fitness)"></span> 健身</span><b>体脂 15% · 60–62kg</b></div>
+          <div class="kv"><span><span class="dot" style="background:var(--english)"></span> 英语</span><b>A2 → B1</b></div>
+          <div class="kv"><span><span class="dot" style="background:var(--finance)"></span> 理财</span><b>建仓 60–70%</b></div>
+          <div class="kv"><span><span class="dot" style="background:var(--ai)"></span> AI</span><b>开源应用 v1.0</b></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">里程碑</div>
+          <div class="tl">
+            <div class="it w4"><b>W4 · 基线</b><div class="sub">体脂 / 腰围 / 力量 / 英语录音 / 资产表</div></div>
+            <div class="it w4"><b>W13 · 中期</b><div class="sub">体脂 ≈21%；精听 ≥60h；IPS 定稿</div></div>
+            <div class="it w4"><b>W26 · 大考</b><div class="sub">四条线验收 + 打卡应用开源发布</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <b><s>◉</s>今日</b><b class="on"><s>☰</s>计划</b><b><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ④ 趋势 -->
+  <figure>
+    <figcaption><b>④ 趋势</b><span>指标折线 + 26 周热力格 + 复盘记录</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>趋势</b><i>体重 / 体脂 / 英语 / 建仓</i></div>
+      <div class="bd scroll">
+        <div class="chips">
+          <span class="chip on">体脂 %</span><span class="chip">体重</span><span class="chip">腰围</span>
+          <span class="chip">英语累计 h</span><span class="chip">建仓 %</span>
+        </div>
+        <div class="card">
+          <div class="card-title">体脂 22% → 15%<span class="tag ok">按计划</span></div>
+          <svg class="chart" viewBox="0 0 300 130" preserveAspectRatio="none">
+            <line x1="8" y1="110" x2="292" y2="110" stroke="#e5e7eb"></line>
+            <line x1="8" y1="65" x2="292" y2="65" stroke="#eef1f4"></line>
+            <line x1="8" y1="20" x2="292" y2="20" stroke="#cbe8d4" stroke-dasharray="4 4"></line>
+            <polyline fill="none" stroke="#1f4e79" stroke-width="2.5"
+              points="10,110 31.5,101 53,93.2 74.5,85.4 96,77.6 117.5,69.8 139,62 160.5,54.2 182,46.4 203.5,38.6 225,30.8 246.5,23 268,21.8 289.5,20"></polyline>
+            <circle cx="10" cy="110" r="3.5" fill="#1f4e79"></circle>
+            <circle cx="289.5" cy="20" r="3.5" fill="#2f9e44"></circle>
+          </svg>
+          <div class="legend"><span>现在 22%</span><span>M3 目标 19%</span><span>M6 目标 15%</span><span class="muted">（示例数据）</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">26 周完成情况<span class="tag muted">已过 0 周</span></div>
+          <div class="grid26">
+            <span class="gcell">1</span><span class="gcell">2</span><span class="gcell">3</span><span class="gcell">4</span>
+            <span class="gcell">5</span><span class="gcell">6</span><span class="gcell">7</span><span class="gcell">8</span>
+            <span class="gcell">9</span><span class="gcell">10</span><span class="gcell">11</span><span class="gcell">12</span><span class="gcell">13</span>
+            <span class="gcell">14</span><span class="gcell">15</span><span class="gcell">16</span><span class="gcell">17</span>
+            <span class="gcell">18</span><span class="gcell">19</span><span class="gcell">20</span><span class="gcell">21</span>
+            <span class="gcell">22</span><span class="gcell">23</span><span class="gcell">24</span><span class="gcell">25</span><span class="gcell">26</span>
+          </div>
+          <div class="legend">
+            <span><i style="background:#fdece1"></i>&lt;60%</span>
+            <span><i style="background:#d3f9d8"></i>60–85%</span>
+            <span><i style="background:#37b24d"></i>≥85%</span>
+            <span><i style="background:#eef1f4"></i>未开始</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">周复盘记录</div>
+          <div class="sub" style="margin-bottom:8px"><b>W1（10/19–10/25）</b><br>健身 5/5 做到；英语只精听 2 天，卡在加班；下周把精听挪到午休。</div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <b><s>◉</s>今日</b><b><s>☰</s>计划</b><b class="on"><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ⑤ 周复盘 -->
+  <figure>
+    <figcaption><b>⑤ 周复盘（周日 21:15）</b><span>四条线各一句 + 一句话总结，10 分钟内写完</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>周复盘</b><i>W1 · 10/19–10/25</i></div>
+      <div class="bd scroll">
+        <div class="card">
+          <div class="four">
+            <div class="mini"><b>已打卡</b>5 / 7 天</div>
+            <div class="mini"><b>本周投入</b>22.5 h</div>
+            <div class="mini"><b>运动</b>4 次</div>
+            <div class="mini"><b>AI 块</b>6.5 h</div>
+          </div>
+        </div>
+        <div class="field"><label>健身：做到 / 没做到</label><input value="5/5 完成，深蹲加了 2.5kg"></div>
+        <div class="field"><label>英语：做到 / 没做到</label><input value="只精听 2 天，两次都卡在加班"></div>
+        <div class="field"><label>理财：做到 / 没做到</label><input value="体检做完了，应急金缺口待算"></div>
+        <div class="field"><label>AI：做到 / 没做到</label><input value="打卡应用骨架跑通，写了 1 页 ADR"></div>
+        <div class="field"><label>下月/下周最重要的一件事</label><textarea>把英语精听挪到午休，别放在晚上和加班抢时间</textarea></div>
+        <button class="btn primary" style="width:100%">保存复盘</button>
+      </div>
+      <div class="tabbar">
+        <b><s>◉</s>今日</b><b><s>☰</s>计划</b><b><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ⑥ 我的 -->
+  <figure>
+    <figcaption><b>⑥ 我的</b><span>基线 / 提醒 / 备份 / 关于</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>我的</b><i>v0.1 · MIT</i></div>
+      <div class="bd scroll">
+        <div class="card">
+          <div class="card-title">基线<span class="tag">已填</span></div>
+          <div class="kv"><span>身高 / 体重</span><b>175cm / 70kg</b></div>
+          <div class="kv"><span>体脂 / 腰围</span><b>22% / 待测</b></div>
+          <div class="kv"><span>英语水平</span><b>A2</b></div>
+          <div class="kv"><span>本金 / 应急金缺口</span><b>50 万 / 待算</b></div>
+          <button class="btn" style="width:100%;margin-top:10px">编辑基线</button>
+        </div>
+        <div class="card">
+          <div class="card-title">提醒</div>
+          <div class="kv"><span>每日打卡</span><b>22:45</b></div>
+          <div class="kv"><span>周日复盘</span><b>21:15</b></div>
+          <div class="banner" style="margin-top:10px">网页不能主动推送，请用手机自带闹钟兜底。</div>
+        </div>
+        <div class="card">
+          <div class="card-title">备份</div>
+          <button class="btn" style="width:100%;margin-bottom:8px">导出备份（JSON）</button>
+          <button class="btn" style="width:100%;margin-bottom:8px">从文件导入</button>
+          <button class="btn" style="width:100%">复制到剪贴板</button>
+          <div class="sub" style="margin-top:8px">数据只在这台设备，建议每周日导出一次。</div>
+        </div>
+        <div class="card">
+          <div class="card-title">关于</div>
+          <div class="sub">Growth Loop v0.1 · 本地优先 · MIT 开源<br>github.com/&lt;你&gt;/growth-loop</div>
+          <button class="btn" style="width:100%;margin-top:10px;color:var(--danger);border-color:#ffc9c9">清空所有数据</button>
+        </div>
+      </div>
+      <div class="tabbar">
+        <b><s>◉</s>今日</b><b><s>☰</s>计划</b><b><s>◪</s>趋势</b><b class="on"><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ⑦ 上手 -->
+  <figure>
+    <figcaption><b>⑦ 首次上手</b><span>第一次打开：3 步填完基线，之后不再打扰</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>上手</b><i>1 / 3</i></div>
+      <div class="bd scroll">
+        <div class="card">
+          <div class="card-title">欢迎 · 先把基线填了</div>
+          <div class="sub">基线是半年后判断有没有进步的唯一依据。填不出的先空着，第 1 周补。</div>
+        </div>
+        <div class="field"><label>身高 / 体重</label><input value="175 cm / 70 kg"></div>
+        <div class="field"><label>体脂率（可估算）</label><input placeholder="22%"></div>
+        <div class="field"><label>腰围（早晨空腹）</label><input placeholder="待测 cm"></div>
+        <div class="field"><label>英语自评</label><input placeholder="高中水平 ≈ A2"></div>
+        <div class="field"><label>投资本金到账时间</label><input placeholder="例如 2026-12"></div>
+        <div class="field"><label>应急金缺口</label><input placeholder="待算 元"></div>
+        <button class="btn primary" style="width:100%">下一步</button>
+      </div>
+      <div class="tabbar">
+        <b class="on"><s>◉</s>今日</b><b><s>☰</s>计划</b><b><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ⑧ 状态合集 -->
+  <figure>
+    <figcaption><b>⑧ 状态设计</b><span>未开始 / 空数据 / 全部完成 / 连续断卡</span></figcaption>
+    <div class="scr">
+      <div class="hd"><b>状态</b><i>都要画，不能只画好看的那条路</i></div>
+      <div class="bd scroll">
+        <div class="card">
+          <div class="card-title">A · 计划还没开始</div>
+          <div class="banner">距开跑还有 6 天（2026-10-19）。可以先填基线。</div>
+        </div>
+        <div class="card">
+          <div class="card-title">B · 今天全部完成</div>
+          <div class="prog">
+            <div class="ring" style="--p:100"><b>3/3</b></div>
+            <div class="txt"><b>今日打卡完成 🎉</b><div class="sub">第 1 天 · 连续 1 天</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">C · 连续断卡 2 天</div>
+          <div class="banner" style="background:#fdece1;border-color:#f7d5c1;color:#a83a0c">
+            已经断 2 天。今天恢复就算赢，别补课、别加量。
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">D · 离线</div>
+          <div class="banner" style="background:var(--fill);border-color:var(--line);color:#5b6470">
+            当前离线，打卡照常记，联网后不影响。
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">E · 数据为空</div>
+          <div class="sub">还没有任何记录。完成第一次打卡后，趋势页会出现数据。</div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <b class="on"><s>◉</s>今日</b><b><s>☰</s>计划</b><b><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ⑨ 深色模式 -->
+  <figure>
+    <figcaption><b>⑨ 深色模式</b><span>晚间使用居多，深色是主场景不是附加</span></figcaption>
+    <div class="scr" data-theme="dark">
+      <div class="hd"><b>成长打卡</b><i>第 1/26 周</i></div>
+      <div class="bd">
+        <div class="card">
+          <div class="prog">
+            <div class="ring" style="--p:67"><b>2/3</b></div>
+            <div class="txt"><b>今天还差 1 项</b><div class="sub">已投入 115 分钟</div></div>
+          </div>
+        </div>
+        <div class="task done">
+          <div class="row"><div class="name"><span class="dot" style="background:var(--fitness)"></span>力量 A</div><div class="meta">健身 · 75′</div></div>
+          <div class="hint">深蹲 / 卧推 / 划船</div>
+          <div class="btns"><button class="btn on">✓ 已完成</button><button class="btn ghost">撤销</button></div>
+        </div>
+        <div class="task">
+          <div class="row"><div class="name"><span class="dot" style="background:var(--english)"></span>英语精听</div><div class="meta">英语 · 60′</div></div>
+          <div class="hint">听 3 遍 → 看文本 → 跟读 3 遍</div>
+          <div class="btns"><button class="btn primary">完成</button><button class="btn ghost">降级 / 跳过</button></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <b class="on"><s>◉</s>今日</b><b><s>☰</s>计划</b><b><s>◪</s>趋势</b><b><s>☺</s>我的</b>
+      </div>
+    </div>
+  </figure>
+
+</div>
+
+</body>
+</html>

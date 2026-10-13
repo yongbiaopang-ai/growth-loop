@@ -1,0 +1,235 @@
+/* Growth Loop · 活力风格包
+ * 通过 <html data-style="energy|sport|neon"> 切换，与 data-theme="light|dark" 组合。
+ * 加载顺序：tokens.css → themes.css → app.css（本文件覆盖 tokens 的同名变量）。
+ * 三套都保证：渐变两端都足够深，白字在渐变上可读。
+ */
+
+/* ══════════════ A · 活力（默认）：靛蓝 → 亮蓝，薄荷绿收尾 ══════════════ */
+:root,
+[data-style="energy"] {
+  --brand: #6c4cf1;
+  --brand-2: #1e9be5;
+  --brand-grad: linear-gradient(135deg, #6c4cf1 0%, #1e9be5 100%);
+  --brand-tint: #efecfe;
+  --brand-line: #dcd5fb;
+
+  --ok: #00b583;
+  --ok-bg: #f2fcf8;
+  --ok-tint: #e6f8f2;
+  --ok-line: #c2eedf;
+
+  --mvb: #f59e0b;
+  --mvb-bg: #fffbf0;
+  --mvb-tint: #fef3c7;
+
+  --warn: #e5484d;
+  --warn-tint: #fdecec;
+  --warn-line: #f8d2d3;
+
+  --skip: #8a93a6;
+  --skip-bg: #f5f6fa;
+
+  --fitness: #ff6b35;
+  --english: #1e9be5;
+  --finance: #00b583;
+  --ai: #8b5cf6;
+
+  --bg: #f5f6fc;
+  --card: #ffffff;
+  --text: #151726;
+  --muted: #6b7280;
+  --line: #e7e9f5;
+  --fill: #edeff8;
+
+  --danger: #e5484d;
+  --r-card: 18px;
+  --r-btn: 12px;
+  --glow: 0 6px 18px rgba(108, 76, 241, .26);
+}
+
+[data-theme="dark"][data-style="energy"],
+[data-theme="dark"]:root {
+  --brand: #8b7bff;
+  --brand-2: #39b8f5;
+  --brand-grad: linear-gradient(135deg, #6c4cf1 0%, #1e9be5 100%);
+  --brand-tint: #241f45;
+  --brand-line: #3a3170;
+
+  --ok: #2bd9a8;
+  --ok-bg: #12261f;
+  --ok-tint: #12302a;
+  --ok-line: #1e4a40;
+
+  --mvb: #ffb84d;
+  --mvb-bg: #2a2313;
+  --mvb-tint: #3a2f14;
+
+  --warn: #ff7a7f;
+  --warn-tint: #3a2126;
+  --warn-line: #5a2f36;
+
+  --skip: #7b8399;
+  --skip-bg: #22263a;
+
+  --bg: #0f1120;
+  --card: #1a1d33;
+  --text: #eef0fa;
+  --muted: #9aa3be;
+  --line: #2a2f4a;
+  --fill: #232842;
+
+  --danger: #ff7a7f;
+  --glow: 0 6px 22px rgba(108, 76, 241, .42);
+}
+
+/* ══════════════ B · 运动：珊瑚 → 洋红，冲一点 ══════════════ */
+[data-style="sport"] {
+  --brand: #ff4d2d;
+  --brand-2: #e8388c;
+  --brand-grad: linear-gradient(135deg, #ff4d2d 0%, #e8388c 100%);
+  --brand-tint: #ffede9;
+  --brand-line: #ffd3c9;
+
+  --ok: #12b886;
+  --ok-bg: #f2fcf8;
+  --ok-tint: #e3f8f1;
+  --ok-line: #bde9dc;
+
+  --mvb: #ff9f1c;
+  --mvb-bg: #fffaf0;
+  --mvb-tint: #ffeecd;
+
+  --warn: #e03131;
+  --warn-tint: #fdecec;
+  --warn-line: #f8d2d3;
+
+  --skip: #96868c;
+  --skip-bg: #f9f5f6;
+
+  --fitness: #ff3b30;
+  --english: #1c7ed6;
+  --finance: #12b886;
+  --ai: #7048e8;
+
+  --bg: #fff7f5;
+  --card: #ffffff;
+  --text: #201316;
+  --muted: #7a6b70;
+  --line: #f2e4e0;
+  --fill: #fbeff0;
+
+  --danger: #e03131;
+  --r-card: 18px;
+  --r-btn: 12px;
+  --glow: 0 6px 18px rgba(255, 77, 45, .28);
+}
+
+[data-theme="dark"][data-style="sport"] {
+  --brand: #ff7a5c;
+  --brand-2: #ff5ca8;
+  --brand-grad: linear-gradient(135deg, #ff4d2d 0%, #e8388c 100%);
+  --brand-tint: #3a1f22;
+  --brand-line: #5c2f36;
+
+  --ok: #2fd9a5;
+  --ok-bg: #14261f;
+  --ok-tint: #16302a;
+  --ok-line: #265045;
+
+  --mvb: #ffbc4d;
+  --mvb-bg: #2c2213;
+  --mvb-tint: #3d2f14;
+
+  --warn: #ff7a7f;
+  --warn-tint: #3a2023;
+  --warn-line: #5c2f36;
+
+  --skip: #8b7a80;
+  --skip-bg: #2a1f23;
+
+  --bg: #1a1113;
+  --card: #241a1d;
+  --text: #fbeeea;
+  --muted: #b39aa0;
+  --line: #3a2a2f;
+  --fill: #2e2126;
+
+  --danger: #ff7a7f;
+  --glow: 0 6px 22px rgba(232, 56, 140, .4);
+}
+
+/* ══════════════ C · 霓虹：薄荷 → 电蓝，深色优先、带辉光 ══════════════ */
+[data-style="neon"] {
+  --brand: #00a97a;
+  --brand-2: #0077ff;
+  --brand-grad: linear-gradient(135deg, #00a97a 0%, #0077ff 100%);
+  --brand-tint: #e6f7f2;
+  --brand-line: #c2e9dd;
+
+  --ok: #00a97a;
+  --ok-bg: #f1fbf8;
+  --ok-tint: #e2f6f1;
+  --ok-line: #bfe8de;
+
+  --mvb: #f0a500;
+  --mvb-bg: #fffcef;
+  --mvb-tint: #fdf1cd;
+
+  --warn: #e5484d;
+  --warn-tint: #fdecec;
+  --warn-line: #f8d2d3;
+
+  --skip: #8299a0;
+  --skip-bg: #f3f8f8;
+
+  --fitness: #ff7a45;
+  --english: #1e88e5;
+  --finance: #00a97a;
+  --ai: #7c4dff;
+
+  --bg: #f2fbf8;
+  --card: #ffffff;
+  --text: #0d2226;
+  --muted: #5f7a7a;
+  --line: #e2f0ec;
+  --fill: #e9f5f1;
+
+  --danger: #e5484d;
+  --r-card: 18px;
+  --r-btn: 12px;
+  --glow: 0 6px 18px rgba(0, 169, 122, .26);
+}
+
+[data-theme="dark"][data-style="neon"] {
+  --brand: #2be3b0;
+  --brand-2: #33a1ff;
+  --brand-grad: linear-gradient(135deg, #00c48f 0%, #0077ff 100%);
+  --brand-tint: #10322e;
+  --brand-line: #1d4f47;
+
+  --ok: #2be3b0;
+  --ok-bg: #0c2622;
+  --ok-tint: #10322e;
+  --ok-line: #1d4f47;
+
+  --mvb: #ffc861;
+  --mvb-bg: #262016;
+  --mvb-tint: #362d17;
+
+  --warn: #ff8589;
+  --warn-tint: #341f26;
+  --warn-line: #552f39;
+
+  --skip: #6f8d92;
+  --skip-bg: #12242a;
+
+  --bg: #08151a;
+  --card: #0f2027;
+  --text: #e6fffa;
+  --muted: #7fa8a5;
+  --line: #17323a;
+  --fill: #122a33;
+
+  --danger: #ff8589;
+  --glow: 0 0 22px rgba(43, 227, 176, .32);
+}

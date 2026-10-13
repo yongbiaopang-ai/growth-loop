@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Growth Loop · 三套活力风格对照</title>
+<style>
+  body { margin: 0; padding: 18px 20px 30px; background: #e9edf2; font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", Arial, sans-serif; color: #1b1d21; }
+  h1 { font-size: 18px; color: #1f4e79; margin: 0 0 4px; }
+  h2 { font-size: 13px; color: #5b6470; margin: 20px 0 8px; font-weight: 600; }
+  p { margin: 2px 0 0; color: #5b6470; font-size: 12px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; }
+  figure { margin: 0; }
+  figcaption { font-size: 12px; color: #1f4e79; font-weight: 600; margin-bottom: 6px; }
+  iframe { width: 375px; height: 780px; border: 9px solid #22262c; border-radius: 32px; background: #fff; }
+</style>
+</head>
+<body>
+<h1>三套活力风格 · 同一屏对照</h1>
+<p>这是真实应用（不是设计稿），通过 <code>?style=</code> <code>?theme=</code> <code>?local=0</code> 参数渲染。风格切换在应用「我的 → 外观」里。</p>
+<p><code>local=0</code> 表示忽略本机 <code>seed.local.js</code>，只显示中性模板——仓库里的截图都用这个，避免把个人数字带进开源仓库。</p>
+
+<h2>浅色</h2>
+<div class="row">
+  <figure><figcaption>A 活力（靛蓝→亮蓝，默认）</figcaption><iframe src="../index.html?style=energy&theme=light&local=0#today"></iframe></figure>
+  <figure><figcaption>B 运动（珊瑚→洋红）</figcaption><iframe src="../index.html?style=sport&theme=light&local=0#today"></iframe></figure>
+  <figure><figcaption>C 霓虹（薄荷→电蓝）</figcaption><iframe src="../index.html?style=neon&theme=light&local=0#today"></iframe></figure>
+</div>
+
+<h2>深色</h2>
+<div class="row">
+  <figure><figcaption>A 活力</figcaption><iframe src="../index.html?style=energy&theme=dark&local=0#today"></iframe></figure>
+  <figure><figcaption>B 运动</figcaption><iframe src="../index.html?style=sport&theme=dark&local=0#today"></iframe></figure>
+  <figure><figcaption>C 霓虹（辉光最明显）</figcaption><iframe src="../index.html?style=neon&theme=dark&local=0#today"></iframe></figure>
+</div>
+</body>
+</html>

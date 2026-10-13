@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Growth Loop · 应用实际渲染（四页 · 中性模板）</title>
+<style>
+  body { margin: 0; padding: 18px 20px 30px; background: #e9edf2; font: 13px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", Arial, sans-serif; color: #1b1d21; }
+  h1 { font-size: 18px; color: #1f4e79; margin: 0 0 4px; }
+  p { margin: 2px 0 0; color: #5b6470; font-size: 12px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; }
+  figure { margin: 0; }
+  figcaption { font-size: 12px; color: #1f4e79; font-weight: 600; margin-bottom: 6px; }
+  iframe { width: 375px; height: 780px; border: 9px solid #22262c; border-radius: 32px; background: #fff; }
+</style>
+</head>
+<body>
+<h1>应用实际渲染（四个 tab）</h1>
+<p>真实应用，不是设计稿。<code>local=0</code> = 只显示中性模板，不含任何个人数字。</p>
+<div class="row">
+  <figure><figcaption>今日</figcaption><iframe src="../index.html?local=0&theme=dark#today"></iframe></figure>
+  <figure><figcaption>计划</figcaption><iframe src="../index.html?local=0&theme=dark#plan"></iframe></figure>
+  <figure><figcaption>趋势</figcaption><iframe src="../index.html?local=0&theme=dark#trend"></iframe></figure>
+  <figure><figcaption>我的</figcaption><iframe src="../index.html?local=0&theme=dark#mine"></iframe></figure>
+</div>
+</body>
+</html>

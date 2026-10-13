@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>成长打卡 · Growth Loop</title>
+<meta name="description" content="本地优先的个人成长打卡与复盘工具：健身、英语、理财、AI 四条线。">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f4e79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="成长打卡">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="design/tokens.css">
+<link rel="stylesheet" href="design/themes.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>成长打卡</h1>
+  <div class="sub">Growth Loop v0.2</div>
+</header>
+
+<main>
+  <section id="view-today" class="view on"></section>
+  <section id="view-plan" class="view"></section>
+  <section id="view-trend" class="view"></section>
+  <section id="view-mine" class="view"></section>
+</main>
+
+<nav class="tabs">
+  <button class="tab on" data-tab="today"><s>◉</s>今日</button>
+  <button class="tab" data-tab="plan"><s>☰</s>计划</button>
+  <button class="tab" data-tab="trend"><s>◪</s>趋势</button>
+  <button class="tab" data-tab="mine"><s>☺</s>我的</button>
+</nav>
+
+<div id="modal"></div>
+
+<script src="seed.local.js"></script>
+<script src="seed.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
