@@ -488,7 +488,7 @@
       '<div class="sub">数据只在这台设备。建议每周日导出一次。</div></div>';
 
     html += '<div class="card"><div class="card-title">关于</div>' +
-      '<div class="sub">Growth Loop v0.2 · 本地优先 · MIT 开源<br>打卡 ' + Object.keys(state.checkins).length +
+      '<div class="sub">Growth Loop v0.4 · 本地优先 · MIT 开源<br>打卡 ' + Object.keys(state.checkins).length +
       ' 天 · 记录 ' + Object.keys(state.metrics).length + ' 个月指标</div>' +
       '<button class="btn wide danger" id="btn-clear">清空所有数据</button></div>';
 
@@ -655,7 +655,8 @@
     r.onload = function () {
       try {
         var obj = JSON.parse(r.result);
-        if (!obj || !obj.checkins) throw new Error("不是 Growth Loop 的备份文件");
+        if (obj && obj.schema === "growth-loop.import.v1") { applyImport(obj); return; }
+        if (!obj || !obj.checkins) throw new Error("不是 Growth Loop 的备份文件，也不是导入用的 JSON");
         var b = blank();
         state = Object.assign(b, obj);
         state.settings = Object.assign(b.settings, obj.settings || {});
@@ -666,6 +667,35 @@
     };
     r.readAsText(f);
     e.target.value = "";
+  }
+
+  /* "M1"…"M12" → "YYYY-MM"，从计划开始月往后排；已经是 YYYY-MM 的原样返回 */
+  function monthKeyOf(label) {
+    var s = String(label == null ? "" : label).trim();
+    var m = /^M(\d+)$/i.exec(s);
+    if (!m) return s;
+    var idx = parseInt(m[1], 10) - 1;
+    var d = parseD(S.PLAN_START);
+    var mo = d.getMonth() + idx;
+    var y = d.getFullYear() + Math.floor(mo / 12);
+    return y + "-" + pad((mo % 12) + 1);
+  }
+
+  /* 导入 xlsx_to_json.py 产出的载荷：只取应用能显示的字段（指标 + 基线）；
+   * 周记录、里程碑、资金配置、书单留在 JSON 里备查，不塞进状态变成死数据。 */
+  function applyImport(payload) {
+    var n = 0;
+    Object.keys(payload.metrics || {}).forEach(function (k) {
+      var key = monthKeyOf(k);
+      state.metrics[key] = Object.assign({}, state.metrics[key] || {}, payload.metrics[k]);
+      n++;
+    });
+    var filled = 0;
+    Object.keys(payload.baseline || {}).forEach(function (k) {
+      if (!state.baseline[k]) { state.baseline[k] = payload.baseline[k]; filled++; }
+    });
+    save(); renderAll();
+    alert("导入完成：指标 " + n + " 个月" + (filled ? "，基线补了 " + filled + " 个空字段" : "") + "。");
   }
   function clearAll() {
     if (!confirm("确定清空所有打卡数据？不可撤销，建议先导出备份。")) return;
@@ -707,6 +737,14 @@
     var open = param("open");
     if (open === "review") openReview(selDate);
     if (open === "metrics") openMetricsSheet(null);
+    /* 测试钩子：只在 ?test=1 时暴露，供 tools/smoke_test.js 断言导入逻辑 */
+    if (param("test") === "1") {
+      window.__gl = {
+        applyImport: applyImport,
+        monthKeyOf: monthKeyOf,
+        dump: function () { return JSON.stringify(state); }
+      };
+    }
 
     if (window.matchMedia) {
       try {

@@ -72,6 +72,22 @@ python tools/make_icons.py      # 重新生成 PWA 图标
 - **改 `seed.js` 或任何静态文件后，把 `sw.js` 里的 `VERSION` 加一**，否则手机还在用旧缓存。
 - 改数据模型：同时改 `app.js` 的 `KEY` 版本号与 `load()` 里的迁移逻辑。
 
+## 导入你现有的 Excel 打卡表
+
+```bash
+python tools/xlsx_to_json.py "半年计划打卡表_26周.xlsx" -o import.json
+python tools/xlsx_to_json.py --sample -o data/sample.json     # 合成示例数据（不含任何真实信息）
+python tools/test_xlsx_import.py                              # 29 项导入器测试
+```
+
+然后在应用「我的 → 从文件导入」里选生成的 JSON。
+
+- **导入器只取应用能显示的字段**（指标 + 基线）。周记录、里程碑、资金配置、书单会留在 JSON 里备查，不塞进状态变成死数据——这是刻意的边界，不是没做完。
+- **按表头名取值，不按列号**：缺列、多列、列序变化都不影响结果；工作表按名字前缀模糊匹配（表名带空格、括号、后缀都能认）。
+- 数值宽容解析：`≤82` → 82、`150h` → 150；`1800-1900`、`25→15` 这类区间保留原文。
+- `data/sample.json` 是合成数据（12 个月指标 + 26 周记录），可以直接导入看有数据的样子。
+- 指标表的 `M1…M12` 会按计划开始月换算成 `2026-10 … 2027-09`；已经是 `YYYY-MM` 的原样保留。
+
 ## 数据结构
 
 localStorage 键：`growthloop.v1`
@@ -88,7 +104,7 @@ localStorage 键：`growthloop.v1`
       "en_listen":  { "s": "skip", "reason": "加班", "ts": 1760000000000 }
     }
   },
-  "metrics": { "2026-10": { "bodyfat": 25, "weight": 67, "sleep": 7.2 } },
+  "metrics": { "2026-10": { "bodyfat": 22, "weight": 69, "sleep": 7.2 } },
   "reviews": { "2026-10-19": { "fitness": "…", "text": "…", "ts": 1760000000000 } }
 }
 ```
@@ -101,7 +117,7 @@ localStorage 键：`growthloop.v1`
 | --- | --- | --- |
 | M0 | 骨架、数据模型、打卡能存 | ✅ |
 | M1 | 今日页 + 七天条带补卡 + 计划页 + 我的页 + 空/未开始状态 + 深色模式 | ✅ v0.2 |
-| M1.5 | 导入现有 26 周 Excel 历史 | ⬜ 排到 11 月中（计划 10-19 才开始，当前没有历史可导） |
+| M1.5 | 对照真实表的导入器（`tools/xlsx_to_json.py`）+ 合成示例数据 | ✅ v0.4 |
 | M2 | 指标趋势图与录入、周复盘表单、备份往返 | ✅ v0.3 |
 | M3 | AI 周报 + prompt 版本管理 + 20 条评测集 | ⬜ |
 | M4 | 提醒引导、安装引导、开源发布 v1.0 | ⬜ |

@@ -82,6 +82,7 @@ function render(seedState, mutateSeed, opts) {
   out.theme = document.documentElement._attrs["data-theme"] || "";
   out.style = document.documentElement._attrs["data-style"] || "";
   out.sheet = els["#modal"] ? els["#modal"].innerHTML : "";
+  out.__gl = sandbox.__gl || null;
   out.store = store;
   return out;
 }
@@ -152,6 +153,24 @@ check("个人值未进仓库（自动派生 " + personal.length + " 个 token）
 const leakB = [];
 scan.forEach(({ p, text }) => tok(text, STRICT_UNIT_RE).forEach((t) => { if (!vocab.has(t)) leakB.push(p + " ← " + t); }));
 check("单位数字都在中性词汇表内", leakB.length === 0, [...new Set(leakB)].slice(0, 6).join("; "));
+
+/* 结构性规则（不靠词表）：绝对路径与本机用户名。
+ * 用户名从 os.homedir() 现场推导，所以仓库里既没有个人数据，也没有"该防谁"的线索。
+ * 正则要排除网址协议那一串（https 后面的斜杠不是盘符）。
+ * 注意：注释里也不能写出会被这条规则命中的字面例子——本仓库已被这个坑绊过两次。 */
+const os = require("os");
+const homeName = path.basename(os.homedir());
+const ABS_RE = /(^|[^A-Za-z])[A-Za-z]:[\\/]|\/Users\/|\/home\//;
+const leakC = [];
+scan.forEach(({ p, text }) => {
+  text.split("\n").forEach((ln, i) => {
+    if (ABS_RE.test(ln)) leakC.push(p + ":" + (i + 1) + " ← 绝对路径");
+    if (homeName && homeName.length >= 2 && ln.includes(homeName)) leakC.push(p + ":" + (i + 1) + " ← 本机用户名");
+  });
+});
+check("不含绝对路径与本机用户名", leakC.length === 0, [...new Set(leakC)].slice(0, 5).join("; "));
+// 规则自检：能命中盘符路径，且不会把网址协议误判为盘符
+check("路径规则自检", ABS_RE.test("D:" + String.fromCharCode(92) + "dir") && !ABS_RE.test("https://example.com"));
 
 check("seed.local.js 已被 gitignore", fs.readFileSync(path.join(ROOT, ".gitignore"), "utf8").includes("seed.local.js"));
 check("提供了本地覆盖模板", fs.existsSync(path.join(ROOT, "seed.local.example.js")));
@@ -266,6 +285,28 @@ check("提示留空不等于 0", G.sheet.includes("留空表示当月没有这�
 const G2 = render({ v: 1, settings: {}, baseline: {}, checkins: {}, reviews: {}, metrics: { "2026-10": { bodyfat: 25 }, "2026-11": { bodyfat: 23 } } }, null, { search: "?open=metrics" });
 check("显示上一次的值与月份", G2.sheet.includes("上次 23%") && G2.sheet.includes("2026-11"));
 check("显示目标与上次的按钮", render(null, null, {}).trend.includes("填入「"));
+
+/* ---------- H：导入 xlsx 载荷（M1.5） ---------- */
+console.log("\n— H 导入 xlsx 载荷 —");
+const H = render(null, null, { search: "?test=1" });
+check("测试钩子已挂载", !!H.__gl && typeof H.__gl.applyImport === "function");
+if (H.__gl) {
+  check("M1 → 2026-10", H.__gl.monthKeyOf("M1") === "2026-10", H.__gl.monthKeyOf("M1"));
+  check("M12 → 2027-09", H.__gl.monthKeyOf("M12") === "2027-09", H.__gl.monthKeyOf("M12"));
+  check("已是 YYYY-MM 的原样返回", H.__gl.monthKeyOf("2026-12") === "2026-12");
+  H.__gl.applyImport({
+    schema: "growth-loop.import.v1",
+    metrics: { M1: { bodyfat: 25, weight: 70 }, "2026-12": { bodyfat: 20 } },
+    baseline: { "英语水平": "A2" }
+  });
+  let st = JSON.parse(H.__gl.dump());
+  check("指标按月落位", st.metrics["2026-10"] && st.metrics["2026-10"].bodyfat === 25 && st.metrics["2026-12"].bodyfat === 20);
+  check("基线补空字段", st.baseline["英语水平"] === "A2");
+  H.__gl.applyImport({ schema: "growth-loop.import.v1", metrics: { M1: { bodyfat: 19 } }, baseline: { "英语水平": "C1" } });
+  st = JSON.parse(H.__gl.dump());
+  check("重复导入不覆盖已有基线", st.baseline["英语水平"] === "A2");
+  check("重复导入合并同月指标", st.metrics["2026-10"].weight === 70 && st.metrics["2026-10"].bodyfat === 19);
+}
 
 /* ---------- 备份往返 ---------- */
 console.log("\n— 备份往返 —");
