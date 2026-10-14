@@ -143,7 +143,7 @@
   }
 
   /* ---------------- AI 周报 ---------------- */
-  var PROMPT_PATH = "prompts/weekly_report.v1.md";
+  var PROMPT_PATH = "prompts/weekly_report.v2.md";
   var DOMAIN_NAMES = { fitness: "健身", english: "英语", finance: "理财", ai: "AI", core: "全局" };
 
   function aiConfig() {
