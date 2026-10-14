@@ -172,6 +172,28 @@ check("不含绝对路径与本机用户名", leakC.length === 0, [...new Set(le
 // 规则自检：能命中盘符路径，且不会把网址协议误判为盘符
 check("路径规则自检", ABS_RE.test("D:" + String.fromCharCode(92) + "dir") && !ABS_RE.test("https://example.com"));
 
+/* 二进制产物清单：文本规则对二进制双向失效（会漏也会误报），所以显式分层。
+ * 清单由人工看图，机器只保证「清单 == 磁盘」不漂移。 */
+const binListPath = path.join(ROOT, "docs", "binary-artifacts.txt");
+const binList = fs.existsSync(binListPath)
+  ? fs.readFileSync(binListPath, "utf8").split("\n").map((s) => s.trim())
+      .filter((s) => s && !s.startsWith("#"))
+  : [];
+const BIN_EXT = /\.(png|jpe?g|gif|webp|ico)$/i;
+const diskBins = [];
+["design", "icons"].forEach((dir) => {
+  const d = path.join(ROOT, dir);
+  if (!fs.existsSync(d)) return;
+  fs.readdirSync(d).forEach((f) => { if (BIN_EXT.test(f)) diskBins.push(dir + "/" + f); });
+});
+const listedNotOnDisk = binList.filter((f) => !diskBins.includes(f));
+const onDiskNotListed = diskBins.filter((f) => !binList.includes(f));
+check("二进制清单与磁盘一致", listedNotOnDisk.length === 0 && onDiskNotListed.length === 0,
+  [listedNotOnDisk.length ? "清单有磁盘没有：" + listedNotOnDisk.join("、") : "",
+   onDiskNotListed.length ? "磁盘有清单没列：" + onDiskNotListed.join("、") : ""].filter(Boolean).join("；")
+  || (binList.length + " 个待人工看图"));
+check("文本扫描显式跳过二进制", scan.every(({ p }) => !BIN_EXT.test(p)));
+
 check("seed.local.js 已被 gitignore", fs.readFileSync(path.join(ROOT, ".gitignore"), "utf8").includes("seed.local.js"));
 check("提供了本地覆盖模板", fs.existsSync(path.join(ROOT, "seed.local.example.js")));
 
@@ -306,6 +328,31 @@ if (H.__gl) {
   st = JSON.parse(H.__gl.dump());
   check("重复导入不覆盖已有基线", st.baseline["英语水平"] === "A2");
   check("重复导入合并同月指标", st.metrics["2026-10"].weight === 70 && st.metrics["2026-10"].bodyfat === 19);
+}
+
+/* ---------- I：AI 周报（负载 / 本地桩 / 界面） ---------- */
+console.log("\n— I AI 周报 —");
+const I = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; }, { search: "?test=1" });
+check("趋势页有 AI 周报卡", I.trend.includes("AI 周报") && I.trend.includes("btn-report"));
+check("未配 Key 时明确标注", I.trend.includes("未配 Key"));
+check("我的页有 AI 配置", I.mine.includes("AI 周报配置") && I.mine.includes("btn-ai-save"));
+check("Key 输入是密码框且不在页面明文回显结构外", I.mine.includes('id="ai-key" type="password"'));
+if (I.__gl) {
+  const p = I.__gl.weeklyPayload("2026-10-13");
+  check("负载字段固定不漂移",
+    Object.keys(p).sort().join(",") === "byDomain,checkinDays,hours,metrics,note,plans,totalDays,week",
+    Object.keys(p).sort().join(","));
+  check("负载数字来自真实状态", typeof p.checkinDays === "number" && typeof p.hours === "number" && p.totalDays === 7,
+    JSON.stringify({ days: p.checkinDays, hours: p.hours }));
+  const stub = I.__gl.localStubReport({ week: 9, checkinDays: 3, totalDays: 7, hours: 11.5,
+    byDomain: { fitness: 2, english: 1, ai: 3 }, metrics: {}, plans: {} });
+  check("桩报告标了 mode=stub", stub.includes("mode=stub"));
+  check("桩报告有数据来源与样本期", stub.includes("数据来源") && stub.includes("样本期"));
+  const allow = new Set(["9", "3", "7", "11.5", "2", "1"]);
+  const badNums = (stub.match(/\d+(?:\.\d+)?/g) || []).map((n) => String(Number(n))).filter((n) => !allow.has(n));
+  check("桩报告只用输入里出现过的数字", badNums.length === 0, badNums.join(","));
+  const cfg = I.__gl.aiConfig();
+  check("默认没有 Key（不会把 Key 塞进仓库）", cfg.key === "");
 }
 
 /* ---------- 备份往返 ---------- */

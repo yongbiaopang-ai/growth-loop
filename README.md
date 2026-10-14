@@ -142,8 +142,9 @@ GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real \
 
 ## 发布前检查清单（M4）
 
-- [ ] `python tools/check_all.py` 全绿（两套测试 + 行尾巡检 + 总断言）
-- [ ] **人工看图**：`design/*.png` 逐张肉眼确认没有个人数字。文本扫描对二进制图片无效，这一步只能靠眼睛，且**由作者之外的人执行**——自证不算验收。
+- [ ] **在 `main` 上**跑一次完整 `python tools/check_all.py`。工作流守卫只在 main 上执行，在里程碑分支上会 SKIP——只在分支跑就等于没跑过。
+- [ ] `python tools/check_all.py` 全绿（两套测试 + 行尾巡检 + 工作流检查 + 总断言）
+- [ ] **人工看图**：按 [`docs/binary-artifacts.txt`](docs/binary-artifacts.txt) 的清单逐张肉眼确认没有个人数字。文本扫描对二进制图片是**双向失效**的（既会漏真数字，也会因压缩字节误报），这一步只能靠眼睛，且**由作者之外的人执行**——自证不算验收。
 - [ ] 权威口径零命中：追踪文本文件里不得有盘符绝对路径、类 Unix 家目录前缀、本机用户名、个人值。
 - [ ] 在一台全新机器上按 README 能跑起来（含 PWA 安装路径）。
 - [ ] README 中英双语完整、截图与当前版本一致。
