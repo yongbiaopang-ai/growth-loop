@@ -119,24 +119,27 @@ localStorage 键：`growthloop.v1`
 | M1 | 今日页 + 七天条带补卡 + 计划页 + 我的页 + 空/未开始状态 + 深色模式 | ✅ v0.2 |
 | M1.5 | 对照真实表的导入器（`tools/xlsx_to_json.py`）+ 合成示例数据 | ✅ v0.4 |
 | M2 | 指标趋势图与录入、周复盘表单、备份往返 | ✅ v0.3 |
-| M3 | AI 周报 + prompt 版本管理 + 20 条评测集 | ⬜ |
+| M3 | AI 周报 + prompt 版本管理 + 21 条评测集 + 应用内周报 | ✅ 分支 `m3-ai-weekly`（v0.5 待复核合并） |
 | M4 | 提醒引导、安装引导、开源发布 v1.0 | ⬜ |
 
 ## AI 周报与评测（M3）
 
-- **prompt 版本化**：`prompts/weekly_report.v1.md` + `prompts/index.json`。改 prompt 是**新增一个版本文件**，不覆盖旧版本，这样任何一次改动都能被对比。
-- **20 条可机检用例**：`evals/weekly_report.cases.json`，覆盖七类 —— 正常 / 缺数据 / 异常值 / 诱导给投资建议 / 样本期不可比 / 不得编造数字 / 必须引用具体数字。每条声明自己要被检查哪些规则，不是人工主观打分。
+- **prompt 版本化**：`prompts/weekly_report.v1.md` / `weekly_report.v2.md` + `prompts/index.json`。改 prompt 是**新增一个版本文件**，不覆盖旧版本，这样任何一次改动都能被对比；`index.json` 的 `current` 指向应用实际使用的那个版本（现在是 v2）。
+- **21 条可机检用例**：`evals/weekly_report.cases.json`，覆盖七类 —— 正常 / 缺数据 / 异常值 / 诱导给投资建议 / 样本期不可比 / 不得编造数字 / 必须引用具体数字；正常用例额外带一条**反向检查**「数据正常时不得喊异常」，否则"学会无脑喊异常"就能骗过异常值那几条。每条声明自己要被检查哪些规则，不是人工主观打分。
+- **真实评测结果（2026-10-14，`deepseek-flash`，每条重复 3 次）**：v1 **15/21** → v2 **21/21**，变好 6、变差 0。两轮合计 token 91k 输入 + 125k 输出，约 0.59 元。五个失败条目的根因、检查器自身被修的三处、以及**本次结果不能当泛化证据**的理由，都写在 `docs/m3-eval-report.md`。
+- **为什么每条要重复跑**：单跑一次结果不稳定——`no-fabrication-01` 第一次跑报"编造数字"，同样的 prompt 同样的用例再跑却过了。跑器现在报 k/N，并把 `0 < k < N` 的用例单列成"不稳定"，不把它藏在一个 pass/fail 后面。
+- **检查器是文本规则，不是人工判断**：它既可能漏，也可能冤枉。开发过程中它冤枉过三次——"引用诱导词后明确拒绝"被当成给了建议、"未见异常"被当成喊异常、"两段样本期分开陈述，不作比较"被当成没说明。所以真机结果必须存模型原始 `output`（`--save` 的产物里，gitignored），留给人复核。这和 `docs/adr/` 里"扫描器证明不了的事"是同一条边界。
 - **评测跑器**：
 
 ```bash
-python tools/eval_weekly_report.py --mode stub                    # 离线：验证用例与检查器本身
-GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real \
-    --save evals/baseline.local.json                              # 打真实模型并存基线
-GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real \
-    --baseline evals/baseline.local.json                          # prompt 改动前后对比
+python tools/eval_weekly_report.py --mode stub                     # 离线：验证用例与检查器本身
+GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real --repeat 3 \
+    --prompt prompts/weekly_report.v1.md --save evals/baseline.v1.local.json   # 老版本存基线
+GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real --repeat 3 \
+    --baseline evals/baseline.v1.local.json --save evals/baseline.v2.local.json # 新版本对比
 ```
 
-- **桩模式不是验收证据**：stub 的输出显式带 `mode=stub`，而且 `--baseline` 在桩模式下被**拒绝执行**。理由很直白——用桩结果宣称"prompt 变好了"，就是拿假数据冒充真实结果。
+- **桩模式不是验收证据**：stub 的输出显式带 `mode=stub`，而且 `--baseline` 在桩模式下被**拒绝执行**。理由很直白——用桩结果宣称"prompt 变好了"，就是拿假数据冒充真实结果。桩的 `stub_output` 是手写夹具，天然满足自己声明的检查项，所以桩全过不代表 prompt 好。
 - **Key 绝不进仓库**：命令行侧只读环境变量 `GL_LLM_KEY`；应用侧由你自己在「我的 → AI」里填，只存本机 localStorage。token 与费用写到 gitignored 的 `evals/.cost.local.json`（这就是"每百万 token 成本"那项交付物）。
 - **评测集本身也受红线约束**：用例、桩输出、回放素材全部使用中性示例数字，不含任何个人数据。
 
