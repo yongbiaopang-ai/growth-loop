@@ -34,8 +34,9 @@
   function blank() {
     return {
       v: 1,
-      settings: { start: S.PLAN_START, reminder: "22:45", reviewReminder: "21:15", theme: "auto", style: "energy" },
-      baseline: {}, checkins: {}, reviews: {}, metrics: {}
+      settings: { start: S.PLAN_START, reminder: "22:45", reviewReminder: "21:15", theme: "auto", style: "energy",
+                  ai: { base: "", model: "", key: "" } },
+      baseline: {}, checkins: {}, reviews: {}, metrics: {}, reports: {}
     };
   }
   function load() {
@@ -47,7 +48,7 @@
       var b = blank();
       s.settings = Object.assign(b.settings, s.settings || {});
       s.baseline = s.baseline || {}; s.checkins = s.checkins || {};
-      s.reviews = s.reviews || {}; s.metrics = s.metrics || {};
+      s.reviews = s.reviews || {}; s.metrics = s.metrics || {}; s.reports = s.reports || {};
       return s;
     } catch (e) { console.warn("load failed", e); return blank(); }
   }
@@ -139,6 +140,99 @@
       if (typeof v === "number" && !isNaN(v)) return { v: v, month: months[i] };
     }
     return null;
+  }
+
+  /* ---------------- AI 周报 ---------------- */
+  var PROMPT_PATH = "prompts/weekly_report.v2.md";
+  var DOMAIN_NAMES = { fitness: "健身", english: "英语", finance: "理财", ai: "AI", core: "全局" };
+
+  function aiConfig() {
+    var a = (state.settings && state.settings.ai) || {};
+    return { base: a.base || "", model: a.model || "", key: a.key || "" };
+  }
+
+  /* 交给模型的负载：只用应用里真实存在的数据，不做任何推测补全 */
+  function weeklyPayload(dateStr) {
+    var mon = mondayOf(dateStr);
+    var st = weekStats(mon);
+    var stage = stageOf(weekNo(mon));
+    return {
+      week: Math.max(1, weekNo(mon)),
+      checkinDays: st.days,
+      totalDays: 7,
+      hours: Number(st.hours),
+      byDomain: st.byDomain,
+      metrics: state.metrics[monthOf(mon)] || {},
+      plans: S.MONTH_FOCUS[stage] || {},
+      note: ""
+    };
+  }
+
+  /* 本地桩报告：只用负载里出现过的数字，且必须显式标 mode=stub。
+   * 它是"没配 Key 也能看到界面"的兜底，不是模型输出，不能当评测证据。 */
+  function localStubReport(p) {
+    var d = p.byDomain || {};
+    var keys = Object.keys(d);
+    var names = DOMAIN_NAMES;
+    var weakest = keys.slice().sort(function (a, b) { return d[a] - d[b]; })[0];
+    var out = [];
+    out.push("做到了什么：本周打卡 " + p.checkinDays + "/" + p.totalDays + " 天，投入 " + p.hours + " 小时" +
+      (keys.length ? "，" + keys.map(function (k) { return (names[k] || k) + " " + d[k] + " 项"; }).join("、") + "。" : "。"));
+    out.push("没做到什么：" + (keys.length
+      ? "四线里最弱的是" + (names[weakest] || weakest) + "，只有 " + d[weakest] + " 项。"
+      : "四条线的分项数据不足，无法判断缺口在哪条线。"));
+    out.push("下周一条建议：" + (p.checkinDays >= p.totalDays
+      ? "保持现在的节奏，把最弱那条线往前挪一格。"
+      : "先把出勤补到 " + p.totalDays + " 天，再谈加量。"));
+    out.push("数据来源：本周打卡记录（本地生成，未调用模型）；样本期：第 " + p.week + " 周。");
+    out.push("(mode=stub)");
+    return out.join("\n");
+  }
+
+  function finishReport(weekKey, text, mode) {
+    state.reports[weekKey] = { text: text, mode: mode, ts: Date.now() };
+    save();
+    renderTrend();
+  }
+
+  function generateReport(dateStr) {
+    var weekKey = mondayOf(dateStr);
+    var p = weeklyPayload(dateStr);
+    var cfg = aiConfig();
+    var body = $("#ai-report-body");
+    if (body) body.innerHTML = '<div class="sub">生成中…</div>';
+    if (!cfg.key || !cfg.base || !cfg.model) {
+      finishReport(weekKey, localStubReport(p), "stub");
+      return;
+    }
+    fetch(PROMPT_PATH)
+      .then(function (r) {
+        if (!r.ok) throw new Error("读不到 prompt（请用 http/https 打开，别用 file://）");
+        return r.text();
+      })
+      .then(function (prompt) {
+        return fetch(cfg.base.replace(/\/+$/, "") + "/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.key },
+          body: JSON.stringify({
+            model: cfg.model, temperature: 0.2,
+            messages: [
+              { role: "system", content: prompt },
+              { role: "user", content: JSON.stringify(p) }
+            ]
+          })
+        });
+      })
+      .then(function (r) {
+        if (!r.ok) throw new Error("模型接口返回 " + r.status);
+        return r.json();
+      })
+      .then(function (j) {
+        var txt = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
+        if (!txt) throw new Error("模型返回空内容");
+        finishReport(weekKey, txt + "\n(mode=real)", "real");
+      })
+      .catch(function (e) { finishReport(weekKey, "生成失败：" + e.message, "error"); });
   }
 
   /* ---------------- 今日 ---------------- */
@@ -386,6 +480,19 @@
       '<button class="btn primary" id="btn-metric-one">填入「' + m.label + '」</button>' +
       '<button class="btn ghost" id="btn-metric">全部指标</button></div></div>';
 
+    /* AI 周报：没配 Key 时生成的是本地桩报告，会显式标 mode=stub */
+    var rk = mondayOf(today());
+    var rep = (state.reports || {})[rk];
+    var ai = aiConfig();
+    html += '<div class="card"><div class="card-title">AI 周报' +
+      (rep ? '<span class="tag ' + (rep.mode === "real" ? "ok" : "muted") + '">mode=' + esc(rep.mode) + '</span>'
+           : '<span class="tag ' + (ai.key ? "ok" : "warn") + '">' + (ai.key ? "已配 Key" : "未配 Key") + '</span>') +
+      '</div><div id="ai-report-body">' +
+      (rep ? '<div class="sub" style="white-space:pre-wrap">' + esc(rep.text) + '</div>'
+           : '<div class="sub">还没有本周周报。点下面按钮生成——没配 API Key 时会在本机生成桩报告，并标明 mode=stub；桩报告不是模型输出，不能当评测证据。</div>') +
+      '</div><button class="btn wide primary" id="btn-report">生成本周周报</button>' +
+      '<div class="sub" style="margin-top:8px">要去「我的 → AI 周报配置」填接口地址、模型与 Key（只存本机）。</div></div>';
+
     html += '<div class="card"><div class="card-title">26 周完成情况</div><div class="grid26">';
     var t0 = today();
     for (var w = 1; w <= S.PLAN_WEEKS; w++) {
@@ -418,6 +525,8 @@
     });
     $("#btn-metric-one").addEventListener("click", function () { openMetricsSheet(trendKey); });
     $("#btn-metric").addEventListener("click", function () { openMetricsSheet(null); });
+    var rb = $("#btn-report");
+    if (rb) rb.addEventListener("click", function () { generateReport(today()); });
   }
 
   function chartSvg(pts, target) {
@@ -480,8 +589,16 @@
           { auto: "跟随系统", light: "浅色", dark: "深色" }[k] + '</button>';
       }).join("") + '</div><div class="sub">当前：' + themeName + '</div></div>';
 
-    html += '<div class="card"><div class="card-title">备份</div>' +
-      '<button class="btn wide" id="btn-export">导出备份（JSON）</button>' +
+    var ai = aiConfig();
+    html += '<div class="card"><div class="card-title">AI 周报配置' +
+      '<span class="tag ' + (ai.key ? "ok" : "muted") + '">' + (ai.key ? "已配 Key" : "未配 Key") + '</span></div>' +
+      '<div class="field"><label>接口地址（OpenAI 兼容）</label><input id="ai-base" value="' + esc(ai.base) + '" placeholder="https://api.openai.com/v1"></div>' +
+      '<div class="field"><label>模型</label><input id="ai-model" value="' + esc(ai.model) + '" placeholder="gpt-4o-mini"></div>' +
+      '<div class="field"><label>API Key（只存本机，绝不进仓库）</label><input id="ai-key" type="password" value="' + esc(ai.key) + '" placeholder="sk-…"></div>' +
+      '<button class="btn wide primary" id="btn-ai-save">保存</button>' +
+      '<div class="sub">Key 只写进这台设备的 localStorage，不会上传、不会被提交；不配也能用，周报会退化为标注 mode=stub 的本地桩报告。</div></div>';
+
+    html += '<div class="card"><div class="card-title">备份</div>' +      '<button class="btn wide" id="btn-export">导出备份（JSON）</button>' +
       '<button class="btn wide" id="btn-import">从文件导入</button>' +
       '<button class="btn wide" id="btn-copy">复制到剪贴板</button>' +
       '<input type="file" id="file-in" accept="application/json,.json" hidden>' +
@@ -494,6 +611,16 @@
 
     $("#view-mine").innerHTML = html;
     $("#btn-baseline").addEventListener("click", openBaselineSheet);
+    var asave = $("#btn-ai-save");
+    if (asave) asave.addEventListener("click", function () {
+      state.settings.ai = {
+        base: ($("#ai-base").value || "").trim(),
+        model: ($("#ai-model").value || "").trim(),
+        key: ($("#ai-key").value || "").trim()
+      };
+      save(); renderMine();
+      alert("已保存到本机。Key 不会进仓库，也别贴到聊天里。");
+    });
     $("#btn-export").addEventListener("click", exportFile);
     $("#btn-copy").addEventListener("click", copyBackup);
     $("#btn-import").addEventListener("click", function () { $("#file-in").click(); });
@@ -737,11 +864,16 @@
     var open = param("open");
     if (open === "review") openReview(selDate);
     if (open === "metrics") openMetricsSheet(null);
+    /* 预览用：?report=1 直接生成一份周报（没配 Key 就是本地桩，会标 mode=stub） */
+    if (param("report") === "1") generateReport(selDate);
     /* 测试钩子：只在 ?test=1 时暴露，供 tools/smoke_test.js 断言导入逻辑 */
     if (param("test") === "1") {
       window.__gl = {
         applyImport: applyImport,
         monthKeyOf: monthKeyOf,
+        weeklyPayload: weeklyPayload,
+        localStubReport: localStubReport,
+        aiConfig: aiConfig,
         dump: function () { return JSON.stringify(state); }
       };
     }

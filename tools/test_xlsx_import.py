@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 
 import openpyxl
 
@@ -48,6 +49,25 @@ def tmpfile(suffix=".xlsx"):
     return p
 
 
+def cleanup(p, attempts=5, delay=0.2):
+    """删临时文件，删不掉只警告不抛。
+
+    Windows 上杀软/索引会短暂占住句柄，check_all 里真撞过一次
+    `PermissionError: [WinError 32]`，整套测试被判失败——而那是 %TEMP% 下的
+    临时产物被占，不是测试结论。重试几次，仍不行就明说。
+    """
+    for _ in range(attempts):
+        try:
+            os.remove(p)
+            return True
+        except FileNotFoundError:
+            return True
+        except OSError:
+            time.sleep(delay)
+    print("   ! 临时文件删不掉（已重试 %d 次，不影响测试结论）：%s" % (attempts, p))
+    return False
+
+
 # ---------- 1. 真实表 ----------
 print("— 1 真实表结构对齐 —")
 if REAL and os.path.exists(REAL):
@@ -81,7 +101,7 @@ d = X.convert(p)
 check("空表不抛异常", True)
 check("结构都在且为空", d["weekly"] == [] and d["metrics"] == {} and d["milestones"] == [])
 check("缺工作表有警告", any("缺少工作表" in w for w in d["warnings"]), d["warnings"][:1])
-os.remove(p)
+cleanup(p)
 
 
 # ---------- 3. 缺列 ----------
@@ -101,7 +121,7 @@ d = X.convert(p)
 check("缺列仍能取到有值的项", d["metrics"].get("M1", {}).get("weight") == 70, d["metrics"])
 check("缺的指标不出现在结果里", "bodyfat" not in d["metrics"].get("M1", {}))
 check("周表缺列仍能读出周次", d["weekly"] == [{"week": 3}], d["weekly"])
-os.remove(p)
+cleanup(p)
 
 
 # ---------- 4. 多列 / 列序变化 ----------
@@ -117,7 +137,7 @@ wb.save(p)
 d = X.convert(p)
 check("列序变化不影响取值", d["metrics"].get("M1") == {"bodyfat": 25, "weight": 70}, d["metrics"])
 check("全空行不产出", "M2" not in d["metrics"], list(d["metrics"].keys()))
-os.remove(p)
+cleanup(p)
 
 
 # ---------- 5. 合成历史数据：导入后计算正确 ----------
@@ -146,7 +166,7 @@ if os.path.exists(committed):
     check("样例文件是 LF 行尾", raw.count(b"\r\n") == 0, "CRLF=%d" % raw.count(b"\r\n"))
 else:
     check("data/sample.json 存在", False, "跑：python tools/xlsx_to_json.py --sample -o data/sample.json")
-os.remove(tmp)
+cleanup(tmp)
 
 print("\n全部通过" if failed == 0 else "\n失败 %d 项" % failed)
 sys.exit(0 if failed == 0 else 1)

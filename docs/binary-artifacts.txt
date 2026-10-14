@@ -1,0 +1,19 @@
+# 二进制产物清单（必须人工看图）
+#
+# 为什么单独维护这份清单：文本扫描规则对二进制文件是**双向失效**的——
+#   会漏：真烧进 PNG 的数字，文本规则看不见；
+#   会误报：PNG 压缩字节里可能凑出规则要匹配的序列（实测 design/preview-app.png 就撞过路径规则）。
+# 所以正确做法是显式分层：文本规则只扫文本文件（二进制直接跳过，不当命中也当不算通过），
+# 而下面这些文件由**作者之外的人**在发布前逐张用眼睛看。
+#
+# 机制：tools/smoke_test.js 会校验「这份清单」与「磁盘上的二进制文件」完全一致，
+# 新增截图忘记登记、或登记了不存在的文件，都会 FAIL。
+#
+# 重新出图请用中性模板：index.html?local=0（避免把个人数字烧进图片）。
+
+design/preview-ai.png
+design/preview-app.png
+design/preview-styles.png
+design/preview-v1.png
+icons/icon-192.png
+icons/icon-512.png

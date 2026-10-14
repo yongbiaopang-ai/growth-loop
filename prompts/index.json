@@ -1,0 +1,13 @@
+{
+  "schema": "growth-loop.prompts.v1",
+  "prompts": [
+    {
+      "id": "weekly_report",
+      "current": "v2",
+      "versions": [
+        { "version": "v1", "file": "weekly_report.v1.md", "date": "2026-10-13", "note": "首版：三段式 + 六条硬纪律" },
+        { "version": "v2", "file": "weekly_report.v2.md", "date": "2026-10-14", "note": "在 v1 上补：不得做算术（禁 totalDays-checkinDays、禁把各线任务数相加）+ 异常值必须点名 + 正常数据不得喊异常。真机 21 条用例 ×3 次：v1 15/21 → v2 21/21（变好 6、变差 0）。详见 docs/m3-eval-report.md" }
+      ]
+    }
+  ]
+}
