@@ -82,6 +82,32 @@ def replay(path, cases):
     return checked, changes, missing
 
 
+def load_approved():
+    """读"已批准的判决变化"登记表。
+
+    改裁判时判决发生变化**可以是对的**（例如复核裁定某类写法该算合格），
+    但必须被人显式批准并留下理由，不能由工具自动放过——否则"放宽到刚好通过"
+    与"真的修对了"在工具眼里一模一样。
+    """
+    p = os.path.join(ROOT, "evals", "replay-approved.json")
+    if not os.path.exists(p):
+        return []
+    try:
+        data = json.load(io.open(p, encoding="utf-8"))
+    except Exception as e:
+        print("WARN  %s 解析失败，按「没有批准」处理：%s" % (os.path.relpath(p, ROOT), e))
+        return []
+    return data.get("approved", [])
+
+
+def find_approval(approved, archive_name, case_id, rule, was, now):
+    for a in approved:
+        if (a.get("archive") == archive_name and a.get("case") == case_id
+                and a.get("rule") == rule and a.get("from") == was and a.get("to") == now):
+            return a
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(description="用存档的模型原始输出重放检查")
     ap.add_argument("--archive", action="append", default=None)
@@ -94,26 +120,40 @@ def main():
         return 0
 
     cases = load_cases()
-    print("重放存档：%d 份" % len(paths))
+    approved = load_approved()
+    print("重放存档：%d 份；已批准的变化登记：%d 条" % (len(paths), len(approved)))
     bad = 0
     total_checked = 0
+    total_approved = 0
     for p in paths:
-        name = os.path.relpath(p, ROOT)
+        name = os.path.basename(p)
         checked, changes, missing = replay(p, cases)
         total_checked += checked
-        tag = "OK  " if not changes else "DIFF"
-        print("%s  %-42s 逐规则比对 %d 项" % (tag, name, checked))
+        unexpected = []
+        detail = []
         for cid, rule, was, now in changes:
-            print("        ! %s / %s：存档 %s → 重算 %s" % (cid, rule, was, now))
+            a = find_approval(approved, name, cid, rule, was, now)
+            if a:
+                total_approved += 1
+                detail.append("        ✓ 已批准 %s / %s：%s → %s —— %s"
+                              % (cid, rule, was, now, a.get("reason", "")))
+            else:
+                unexpected.append((cid, rule, was, now))
+                detail.append("        ! 未批准 %s / %s：存档 %s → 重算 %s" % (cid, rule, was, now))
+        print("%s  %-34s 逐规则比对 %d 项" % ("OK  " if not unexpected else "DIFF", name, checked))
+        for d in detail:
+            print(d)
         for m in missing:
             print("        - %s" % m)
-        if changes:
+        if unexpected:
             bad += 1
 
     print("-" * 68)
-    print("逐规则比对合计 %d 项；判决有变化的存档 %d 份" % (total_checked, bad))
+    print("逐规则比对合计 %d 项；已批准变化 %d 条；未批准变化 %d 处"
+          % (total_checked, total_approved, bad))
     if bad and not args.allow_diff:
-        print("FAIL  改了裁判却改动了既有判决：要么是修错了，要么是放宽到偏向模型，逐条看上面的 DIFF。")
+        print("FAIL  出现未批准的判决变化：要么修错了，要么放宽到偏向模型。"
+              "确认某条变化是对的，就在 evals/replay-approved.json 里登记理由后重跑。")
         return 1
     if bad:
         print("（--allow-diff：只报告，不算失败）")
