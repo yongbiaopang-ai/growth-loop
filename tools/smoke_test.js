@@ -91,6 +91,16 @@ const pad = (n) => String(n).padStart(2, "0");
 const d2s = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 const shift = (offset) => { const t = new Date(); return d2s(new Date(t.getFullYear(), t.getMonth(), t.getDate() + offset)); };
 
+/* 时钟无关：所有"第几周"的断言都从**今天**反推 PLAN_START，而不是写死日期。
+ * 教训：这套测试原来把 PLAN_START 写死成 2026-08-17 再断言"第 9 周"，
+ * 计划一开跑（2026-10-19）就整片变红——测试依赖真实时钟，过一周必错。
+ * 现在：要验第 w 周，就把 PLAN_START 设成"本周一往前推 w-1 周"。 */
+const TODAY = d2s(new Date());
+const MON_D = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate() - ((t.getDay() + 6) % 7)); })();
+const planStartForWeek = (w) => d2s(new Date(MON_D.getFullYear(), MON_D.getMonth(), MON_D.getDate() - 7 * (w - 1)));
+const plusDays = (s, n) => { const d = new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10) + n); return d2s(d); };
+const ym = (offset) => { const t = new Date(); const d = new Date(t.getFullYear(), t.getMonth() + offset, 1); return d.getFullYear() + "-" + pad(d.getMonth() + 1); };
+
 /* 把某一天的任务全部标为完成 */
 function fill(checkins, SEED, dateStr) {
   const d = new Date(+dateStr.slice(0, 4), +dateStr.slice(5, 7) - 1, +dateStr.slice(8, 10));
@@ -210,7 +220,10 @@ check("计划页显示中性模板数字", A.plan.includes("22% → 15%") && A.p
 check("今日页七天条带", (A.today.match(/data-day=/g) || []).length === 7);
 check("今日页有任务卡", (A.today.match(/class="task/g) || []).length >= 2);
 check("今日页有环形进度", A.today.includes('class="ring"'));
-check("计划未开始提示", A.today.includes("计划未开始") && A.today.includes("距开跑还有"));
+/* "计划未开始"必须拿"未来开始的计划"来测：默认 seed 的 PLAN_START 是 2026-10-19，
+ * 今天已开跑。原来直接拿默认 seed 断言"未开始"，计划一开跑就必错。 */
+const A2 = render(null, (S) => { S.PLAN_START = shift(7); });
+check("计划未开始提示", A2.today.includes("计划未开始") && A2.today.includes("距开跑还有"));
 check("今日页有规则卡", A.today.includes("三条不许破"));
 // 今天还没过完，不该被标成漏卡；只有早于今天的空白才算漏
 const todayCell = (A.today.match(/class="d[^"]*today[^"]*"/) || [""])[0];
@@ -232,15 +245,15 @@ check("渲染不写 localStorage", A.store.size === 0, "键数 " + A.store.size)
 console.log("\n— B 有数据 + 深色主题 —");
 const B = render({
   v: 1,
-  settings: { start: "2026-10-19", theme: "dark", style: "neon", reminder: "22:45", reviewReminder: "21:15" },
+  settings: { start: shift(7), theme: "dark", style: "neon", reminder: "22:45", reviewReminder: "21:15" },
   baseline: { height: "175cm", weight: "70kg", bodyfat: "22%", waist: "88cm", english: "A2", capital: "50万", emergency: "3.0万" },
   checkins: {
-    "2026-10-19": { strength_a: { s: "done", ts: 1760000000000 }, en_listen: { s: "done", ts: 1760000000000 }, ai_block: { s: "mvb", ts: 1760000000000 } },
-    "2026-10-20": { cardio: { s: "done", ts: 1760000000000 }, en_deep: { s: "skip", reason: "加班", ts: 1760000000000 } }
+    [TODAY]: { strength_a: { s: "done", ts: 1760000000000 }, en_listen: { s: "done", ts: 1760000000000 }, ai_block: { s: "mvb", ts: 1760000000000 } },
+    [shift(-1)]: { cardio: { s: "done", ts: 1760000000000 }, en_deep: { s: "skip", reason: "加班", ts: 1760000000000 } }
   },
-  metrics: { "2026-10": { bodyfat: 25, weight: 67 }, "2026-11": { bodyfat: 23, weight: 65.5 } },
-  reviews: { "2026-10-19": { text: "健身 5/5；英语只精听 2 天", ts: 1760000000000 } }
-});
+  metrics: { [ym(0)]: { bodyfat: 25, weight: 67 }, [ym(1)]: { bodyfat: 23, weight: 65.5 } },
+  reviews: { [TODAY]: { text: "健身 5/5；英语只精听 2 天", ts: 1760000000000 } }
+}, (S) => { S.PLAN_START = shift(7); });
 check("趋势页画出折线", B.trend.includes("<polyline"));
 check("趋势页有目标虚线", B.trend.includes("stroke-dasharray"));
 check("趋势页显示最新值", B.trend.includes("最新 23%"));
@@ -253,13 +266,14 @@ check("风格可切换为霓虹", B.style === "neon", B.style);
 
 /* ---------- C：计划进行中 ---------- */
 console.log("\n— C 计划进行中（PLAN_START 前移 9 周）—");
+const WEEK9_START = planStartForWeek(9);
 const cSeed = { v: 1, settings: { theme: "auto" }, checkins: {}, metrics: {}, reviews: {}, baseline: {} };
-const cProbe = render(null, (S) => { S.PLAN_START = "2026-08-17"; });
-for (let i = 0; i < 7; i++) fill(cSeed.checkins, cProbe.SEED, d2s(new Date(2026, 7, 17 + i)));   // 第 1 周打满
+const cProbe = render(null, (S) => { S.PLAN_START = WEEK9_START; });
+for (let i = 0; i < 7; i++) fill(cSeed.checkins, cProbe.SEED, plusDays(WEEK9_START, i));        // 第 1 周打满
 fill(cSeed.checkins, cProbe.SEED, shift(-1));                                                    // 昨天
 fill(cSeed.checkins, cProbe.SEED, shift(-2));                                                    // 前天
 fill(cSeed.checkins, cProbe.SEED, shift(-3));                                                    // 大前天
-const C = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; });
+const C = render(cSeed, (S) => { S.PLAN_START = WEEK9_START; });
 check("周数计算正确（第 9 周）", /第 9 \/ 26 周/.test(C.today), (C.today.match(/第 \d+ \/ \d+ 周/) || [""])[0]);
 check("阶段为 M2", C.today.includes("M2 地基期"));
 check("不再显示计划未开始", !C.today.includes("计划未开始"));
@@ -269,7 +283,8 @@ check("今天未打卡时提示还差项", /还差 \d+ 项/.test(C.today));
 
 /* ---------- D：W4 检查点周 ---------- */
 console.log("\n— D 走到 W4 检查点周 —");
-const D = render(null, (S) => { S.PLAN_START = "2026-09-21"; });
+const WEEK4_START = planStartForWeek(4);
+const D = render(null, (S) => { S.PLAN_START = WEEK4_START; });
 check("周数计算正确（第 4 周）", /第 4 \/ 26 周/.test(D.today), (D.today.match(/第 \d+ \/ \d+ 周/) || [""])[0]);
 check("60% 起步周标记", D.today.includes("60% 起步周"));
 check("减量周标记", D.today.includes("减量周 60%"));
