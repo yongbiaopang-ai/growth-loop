@@ -63,6 +63,7 @@ function render(seedState, mutateSeed, opts) {
   sandbox.window = sandbox;
   if (opts.ua) sandbox.navigator.userAgent = opts.ua;      // 模拟 iOS / Android 判定
   if (opts.standalone) sandbox.__glForceStandalone = true; // 模拟"已装到主屏"
+  if (opts.native) sandbox.Capacitor = { isNativePlatform: () => true };  // 模拟"被装成 APK"
   vm.createContext(sandbox);
 
   if (opts.withLocal) {
@@ -402,6 +403,11 @@ check("时间格式不对 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planS
 
 const Jr = render({ v: 1, settings: { reminder: "00:00" }, baseline: {}, checkins: {}, reviews: {}, metrics: {}, reports: {} });
 check("今日页显示到点提醒横幅", Jr.today.includes("到点了") && Jr.today.includes("还差"));
+
+/* APK（原生壳）里不该再引导"加主屏"：它本来就是独立 App */
+const Jn = render(null, null, { search: "?test=1", native: true });
+check("APK 里不再提示加主屏", !Jn.today.includes("装到手机主屏") && !Jn.mine.includes("btn-install-guide"));
+check("APK 里我的页标为独立离线版", Jn.mine.includes("独立 App 版") && Jn.mine.includes("离线"));
 
 /* ---------- 自检：这份测试自己不许再写死计划起点 ---------- *
  * 10-19 那次 10 条红就是"写死 PLAN_START + 断言第几周"造成的；修完必须防复发。

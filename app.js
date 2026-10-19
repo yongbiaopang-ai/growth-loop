@@ -44,8 +44,14 @@
     if (a < 0 || b < 0) return false;
     return a >= b;
   }
+  function isNativeApp() {
+    /* 被 Capacitor 打进 APK 时，isNativePlatform() 为真。这时不该再引导"加主屏"——
+       它已经是独立 App 了。 */
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  }
   function isStandalone() {
     if (window.__glForceStandalone) return true;   // 测试钩子
+    if (isNativeApp()) return true;
     try {
       if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
       if (window.navigator && window.navigator.standalone === true) return true;   // iOS Safari
@@ -620,15 +626,22 @@
       '<div class="kv"><span>应急金缺口</span><b>' + (b.emergency || "—") + '</b></div>' +
       '<button class="btn wide" id="btn-baseline">编辑基线</button></div>';
 
-    /* 装到主屏：手机上这决定"能不能每天顺手打开"，比多一个功能重要 */
+    /* 装到主屏：手机上这决定"能不能每天顺手打开"，比多一个功能重要。
+       但如果是 APK（原生壳），这条对用户没意义——换成一行"离线版"说明。 */
     var inst = state.settings.install || {};
     var standalone = isStandalone();
-    html += '<div class="card"><div class="card-title">装到手机主屏<span class="tag ' + (standalone ? "ok" : "warn") + '">' +
-      (standalone ? "已装" : "未装") + '</span></div>' +
-      '<div class="sub">装到主屏后全屏打开、没有地址栏，图标就是它。数据仍然只在这台设备上。</div>' +
-      '<button class="btn wide primary" id="btn-install-guide">' + (standalone ? "查看安装说明" : "如何装到主屏") + '</button>' +
-      (standalone ? "" : '<button class="btn wide" id="btn-install-off">' + (inst.off ? "恢复今日页提示" : "不再提示") + '</button>') +
-      '</div>';
+    if (isNativeApp()) {
+      html += '<div class="card"><div class="card-title">独立 App 版<span class="tag ok">离线</span></div>' +
+        '<div class="sub">当前是打包成 APK 的离线版：所有资源在手机里，不连网也能用。' +
+        'AI 周报的真模型模式仍需要联网并在下面填接口与 Key。</div></div>';
+    } else {
+      html += '<div class="card"><div class="card-title">装到手机主屏<span class="tag ' + (standalone ? "ok" : "warn") + '">' +
+        (standalone ? "已装" : "未装") + '</span></div>' +
+        '<div class="sub">装到主屏后全屏打开、没有地址栏，图标就是它。数据仍然只在这台设备上。</div>' +
+        '<button class="btn wide primary" id="btn-install-guide">' + (standalone ? "查看安装说明" : "如何装到主屏") + '</button>' +
+        (standalone ? "" : '<button class="btn wide" id="btn-install-off">' + (inst.off ? "恢复今日页提示" : "不再提示") + '</button>') +
+        '</div>';
+    }
 
     html += '<div class="card"><div class="card-title">提醒</div>' +
       '<div class="field"><label>每日打卡提醒（到点后打开应用会提示还差几项）</label><input id="set-reminder" type="time" value="' + esc(state.settings.reminder) + '"></div>' +
