@@ -305,7 +305,7 @@ if (!fs.existsSync(path.join(ROOT, "seed.local.js"))) {
 
 /* ---------- F：周复盘面板 ---------- */
 console.log("\n— F 周复盘面板 —");
-const F = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; }, { search: "?open=review" });
+const F = render(cSeed, (S) => { S.PLAN_START = WEEK9_START; }, { search: "?open=review" });
 check("带本周实际统计", F.sheet.includes("已打卡天") && F.sheet.includes("本周投入") && F.sheet.includes("/7"));
 check("四条线都在表单里", ["健身：", "英语：", "理财：", "AI："].every((s) => F.sheet.includes(s)));
 check("有下周最重要的一件事", F.sheet.includes("下周最重要的一件事"));
@@ -347,13 +347,13 @@ if (H.__gl) {
 
 /* ---------- I：AI 周报（负载 / 本地桩 / 界面） ---------- */
 console.log("\n— I AI 周报 —");
-const I = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; }, { search: "?test=1" });
+const I = render(cSeed, (S) => { S.PLAN_START = WEEK9_START; }, { search: "?test=1" });
 check("趋势页有 AI 周报卡", I.trend.includes("AI 周报") && I.trend.includes("btn-report"));
 check("未配 Key 时明确标注", I.trend.includes("未配 Key"));
 check("我的页有 AI 配置", I.mine.includes("AI 周报配置") && I.mine.includes("btn-ai-save"));
 check("Key 输入是密码框且不在页面明文回显结构外", I.mine.includes('id="ai-key" type="password"'));
 if (I.__gl) {
-  const p = I.__gl.weeklyPayload("2026-10-13");
+  const p = I.__gl.weeklyPayload(TODAY);
   check("负载字段固定不漂移",
     Object.keys(p).sort().join(",") === "byDomain,checkinDays,hours,metrics,note,plans,totalDays,week",
     Object.keys(p).sort().join(","));
@@ -369,6 +369,13 @@ if (I.__gl) {
   const cfg = I.__gl.aiConfig();
   check("默认没有 Key（不会把 Key 塞进仓库）", cfg.key === "");
 }
+
+/* ---------- 自检：这份测试自己不许再写死计划起点 ---------- *
+ * 10-19 那次 10 条红就是"写死 PLAN_START + 断言第几周"造成的；修完必须防复发。
+ * 只查**赋值**形态，注释里提到旧日期不算。 */
+const selfSrc = fs.readFileSync(__filename, "utf8");
+const frozenStarts = (selfSrc.match(/PLAN_START\s*=\s*"\d{4}-\d{2}-\d{2}"/g) || []);
+check("测试自身不写死 PLAN_START（防时钟依赖复发）", frozenStarts.length === 0, frozenStarts.join("；"));
 
 /* ---------- 备份往返 ---------- */
 console.log("\n— 备份往返 —");
