@@ -2,7 +2,7 @@
  * 只缓存应用外壳；打卡数据在 localStorage，不经过这里。
  * 改静态文件后把 VERSION 加一，否则手机还在用旧缓存。
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = "growth-loop-" + VERSION;
 const ASSETS = [
   "./",

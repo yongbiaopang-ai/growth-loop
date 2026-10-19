@@ -27,15 +27,50 @@
   }
   function monthOf(s) { return String(s).slice(0, 7); }
 
+  /* ---------------- 安装引导 / 到点提醒（纯函数，便于测试） ---------------- */
+  function two(n) { return (n < 10 ? "0" : "") + n; }
+  function minutesOf(hhmm) {
+    var p = String(hhmm || "").split(":");
+    if (p.length !== 2 || isNaN(+p[0]) || isNaN(+p[1])) return -1;
+    return (+p[0]) * 60 + (+p[1]);
+  }
+  function nowHHMM() { var d = new Date(); return two(d.getHours()) + ":" + two(d.getMinutes()); }
+  /* 到点提醒：只在"计划已开始 + 今天还有没做的项 + 已过提醒时间"时成立。
+     纯本地网页做不到关掉后主动推送（我的页里也如实写了），所以这是**打开应用时**的提醒。 */
+  function checkinReminderDue(o) {
+    if (!o || !o.planStarted) return false;
+    if (!(o.total > 0) || o.decided >= o.total) return false;
+    var a = minutesOf(o.now), b = minutesOf(o.reminder);
+    if (a < 0 || b < 0) return false;
+    return a >= b;
+  }
+  function isStandalone() {
+    if (window.__glForceStandalone) return true;   // 测试钩子
+    try {
+      if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+      if (window.navigator && window.navigator.standalone === true) return true;   // iOS Safari
+    } catch (e) { /* 老浏览器忽略 */ }
+    return false;
+  }
+  function platformKind() {
+    var nav = window.navigator || {};
+    var ua = String(nav.userAgent || "");
+    if (/iPhone|iPad|iPod/.test(ua)) return "ios";
+    if (/Macintosh/.test(ua) && (nav.maxTouchPoints || 0) > 1) return "ios";   // iPadOS 13+ 会伪装成 Mac
+    if (/Android/.test(ua)) return "android";
+    return "desktop";
+  }
+
   /* ---------------- 状态 ---------------- */
   var state = load();
   var selDate = today();
+  var deferredInstallPrompt = null;   // Chrome/Edge 的"一键安装"事件，只有支持时才用
 
   function blank() {
     return {
       v: 1,
       settings: { start: S.PLAN_START, reminder: "22:45", reviewReminder: "21:15", theme: "auto", style: "energy",
-                  ai: { base: "", model: "", key: "" } },
+                  ai: { base: "", model: "", key: "" }, install: { off: false } },
       baseline: {}, checkins: {}, reviews: {}, metrics: {}, reports: {}
     };
   }
@@ -47,6 +82,7 @@
       if (!s || typeof s !== "object") return blank();
       var b = blank();
       s.settings = Object.assign(b.settings, s.settings || {});
+      s.settings.install = Object.assign({ off: false }, s.settings.install || {});
       s.baseline = s.baseline || {}; s.checkins = s.checkins || {};
       s.reviews = s.reviews || {}; s.metrics = s.metrics || {}; s.reports = s.reports || {};
       return s;
@@ -272,6 +308,16 @@
     if (isSundayReviewDue(selDate)) {
       html += '<div class="banner">本周复盘还没写。<button class="chip on" id="btn-review-top" style="border:0">现在写</button></div>';
     }
+    /* 装到主屏引导：只在"计划已开始 + 今天 + 还没装 + 用户没关掉"时出现一次，不刷屏 */
+    if (w >= 1 && isToday && !isStandalone() && !(state.settings.install || {}).off) {
+      html += '<div class="banner info">装到手机主屏，点开就是打卡页，没有地址栏。' +
+        '<button class="chip on" id="btn-install-guide2" style="border:0">怎么装</button></div>';
+    }
+    /* 到点提醒：过了设定时间、今天还有没做的项才出现（不是推送，是打开应用时看到） */
+    if (isToday && checkinReminderDue({ planStarted: w >= 1, decided: decided, total: ts.length,
+        now: nowHHMM(), reminder: state.settings.reminder })) {
+      html += '<div class="banner warn">到点了：今天还差 ' + (ts.length - decided) + ' 项。先挑最小的一项，做 2 分钟就算赢。</div>';
+    }
 
     html += '<div class="card"><div class="prog"><div class="ring' +
       (ts.length && decided === ts.length ? " full" : "") + '" style="--p:' +
@@ -297,6 +343,8 @@
 
     $("#view-today").innerHTML = html;
     bindToday(selDate);
+    var ig2 = $("#btn-install-guide2");
+    if (ig2) ig2.addEventListener("click", openInstallSheet);
   }
 
   function weekStrip(sel) {
@@ -572,10 +620,21 @@
       '<div class="kv"><span>应急金缺口</span><b>' + (b.emergency || "—") + '</b></div>' +
       '<button class="btn wide" id="btn-baseline">编辑基线</button></div>';
 
+    /* 装到主屏：手机上这决定"能不能每天顺手打开"，比多一个功能重要 */
+    var inst = state.settings.install || {};
+    var standalone = isStandalone();
+    html += '<div class="card"><div class="card-title">装到手机主屏<span class="tag ' + (standalone ? "ok" : "warn") + '">' +
+      (standalone ? "已装" : "未装") + '</span></div>' +
+      '<div class="sub">装到主屏后全屏打开、没有地址栏，图标就是它。数据仍然只在这台设备上。</div>' +
+      '<button class="btn wide primary" id="btn-install-guide">' + (standalone ? "查看安装说明" : "如何装到主屏") + '</button>' +
+      (standalone ? "" : '<button class="btn wide" id="btn-install-off">' + (inst.off ? "恢复今日页提示" : "不再提示") + '</button>') +
+      '</div>';
+
     html += '<div class="card"><div class="card-title">提醒</div>' +
-      '<div class="kv"><span>每日打卡</span><b>' + state.settings.reminder + '</b></div>' +
-      '<div class="kv"><span>周日复盘</span><b>' + state.settings.reviewReminder + '</b></div>' +
-      '<div class="banner info" style="margin:10px 0 0">网页不能主动推送通知，请用手机自带闹钟兜底。</div></div>';
+      '<div class="field"><label>每日打卡提醒（到点后打开应用会提示还差几项）</label><input id="set-reminder" type="time" value="' + esc(state.settings.reminder) + '"></div>' +
+      '<div class="field"><label>周日复盘提醒</label><input id="set-review" type="time" value="' + esc(state.settings.reviewReminder) + '"></div>' +
+      '<button class="btn wide" id="btn-remind-save">保存提醒时间</button>' +
+      '<div class="banner info" style="margin:10px 0 0">纯本地网页做不到在你关掉应用后主动推送（那需要服务器）。这里做的是「打开应用时」的到点提醒；要准时，请同时用手机自带闹钟兜底。</div></div>';
 
     html += '<div class="card"><div class="card-title">外观<span class="tag">' +
       (STYLES.filter(function (s) { return s.key === (state.settings.style || "energy"); })[0] || STYLES[0]).name + '</span></div>' +
@@ -605,12 +664,30 @@
       '<div class="sub">数据只在这台设备。建议每周日导出一次。</div></div>';
 
     html += '<div class="card"><div class="card-title">关于</div>' +
-      '<div class="sub">Growth Loop v0.4 · 本地优先 · MIT 开源<br>打卡 ' + Object.keys(state.checkins).length +
+      '<div class="sub">Growth Loop v0.5 · 本地优先 · MIT 开源<br>打卡 ' + Object.keys(state.checkins).length +
       ' 天 · 记录 ' + Object.keys(state.metrics).length + ' 个月指标</div>' +
       '<button class="btn wide danger" id="btn-clear">清空所有数据</button></div>';
 
     $("#view-mine").innerHTML = html;
     $("#btn-baseline").addEventListener("click", openBaselineSheet);
+    var ig = $("#btn-install-guide");
+    if (ig) ig.addEventListener("click", openInstallSheet);
+    var ioff = $("#btn-install-off");
+    if (ioff) ioff.addEventListener("click", function () {
+      state.settings.install = state.settings.install || { off: false };
+      state.settings.install.off = !state.settings.install.off;
+      save(); renderMine(); renderToday();
+    });
+    var rsave = $("#btn-remind-save");
+    if (rsave) rsave.addEventListener("click", function () {
+      var e1 = $("#set-reminder"), e2 = $("#set-review");
+      var r1 = e1 ? String(e1.value || "").trim() : "";
+      var r2 = e2 ? String(e2.value || "").trim() : "";
+      if (minutesOf(r1) < 0 || minutesOf(r2) < 0) { alert("提醒时间格式不对，应该是 HH:MM。"); return; }
+      state.settings.reminder = r1; state.settings.reviewReminder = r2;
+      save(); renderMine(); renderToday();
+      alert("已保存到本机。");
+    });
     var asave = $("#btn-ai-save");
     if (asave) asave.addEventListener("click", function () {
       state.settings.ai = {
@@ -688,6 +765,70 @@
       close(); onSave(out);
     });
     function close() { box.classList.remove("on"); box.innerHTML = ""; }
+  }
+
+  function openInfoSheet(title, html, actions, onPick) {
+    var box = $("#modal");
+    box.innerHTML = '<div class="modal-mask"></div><div class="sheet"><div class="sheet-title">' + title + '</div>' + html +
+      (actions || []).map(function (a) {
+        return '<button class="sheet-btn ' + (a.primary ? "primary" : "cancel") + '" data-act="' + esc(a.value) + '">' + esc(a.label) + '</button>';
+      }).join("") + '</div>';
+    box.classList.add("on");
+    box.querySelector(".modal-mask").addEventListener("click", close);
+    Array.prototype.forEach.call(box.querySelectorAll("[data-act]"), function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-act");
+        close();
+        if (v && onPick) onPick(v);
+      });
+    });
+    function close() { box.classList.remove("on"); box.innerHTML = ""; }
+  }
+
+  /* 加主屏步骤：按平台给，别让人自己去搜 */
+  function installSteps() {
+    var p = platformKind();
+    if (p === "ios") {
+      return '<ol class="sub" style="margin:0;padding-left:18px;line-height:1.8">' +
+        '<li>用 <b>Safari</b> 打开这个地址（微信 / QQ 内置浏览器不行）。</li>' +
+        '<li>点底部中间的「分享」按钮（方框加向上箭头）。</li>' +
+        '<li>在列表里选「添加到主屏幕」。</li>' +
+        '<li>右上角点「添加」。之后从主屏图标打开，全屏、没有地址栏。</li></ol>';
+    }
+    if (p === "android") {
+      return '<ol class="sub" style="margin:0;padding-left:18px;line-height:1.8">' +
+        '<li>用 <b>Chrome</b> 打开这个地址。</li>' +
+        '<li>点右上角的「⋮」菜单。</li>' +
+        '<li>选「添加到主屏幕」或「安装应用」。</li>' +
+        '<li>点「添加」。之后从主屏图标打开即可。</li></ol>';
+    }
+    return '<ol class="sub" style="margin:0;padding-left:18px;line-height:1.8">' +
+      '<li>电脑上：地址栏右侧的「安装」图标（Chrome / Edge），或菜单里选「安装 Growth Loop」。</li>' +
+      '<li>手机上：手机和电脑连同一个 Wi-Fi，电脑端跑 <b>python serve.py</b>，再用手机浏览器打开电脑的局域网地址。</li>' +
+      '<li>打开后按手机平台加主屏：iPhone 用 Safari 的分享菜单，Android 用 Chrome 的菜单。</li></ol>';
+  }
+
+  function openInstallSheet() {
+    var p = platformKind();
+    var where = p === "ios" ? "iPhone / iPad" : (p === "android" ? "Android" : "电脑浏览器");
+    var html = '<div class="sub" style="margin-bottom:8px">当前环境：' + where +
+      (isStandalone() ? "（看起来已经装好了）" : "") + '。</div>' + installSteps() +
+      '<div class="banner info" style="margin:12px 0 0">装好后数据不会变：打卡记录仍然只在这台设备的 localStorage 里，不上传。</div>';
+    var actions = [{ label: "关闭", value: "" }];
+    if (deferredInstallPrompt) actions.unshift({ label: "一键安装到主屏", value: "prompt", primary: true });
+    else if (!isStandalone()) actions.unshift({ label: "我已经装好了", value: "done" });
+    openInfoSheet("装到手机主屏", html, actions, function (v) {
+      if (v === "prompt" && deferredInstallPrompt) {
+        var dp = deferredInstallPrompt; deferredInstallPrompt = null;
+        if (dp.prompt) dp.prompt();
+        return;
+      }
+      if (v === "done") {
+        state.settings.install = state.settings.install || { off: false };
+        state.settings.install.done = true;
+        save(); renderMine(); renderToday();
+      }
+    });
   }
 
   function openReview(dateStr) {
@@ -860,6 +1001,21 @@
     var hash = (location.hash || "").replace("#", "");
     showTab(TABS.indexOf(hash) > -1 ? hash : "today");
 
+    /* 一键安装（Chrome / Edge 支持时）：拿到事件就存着，等用户点"装到主屏"再弹 */
+    if (window.addEventListener) {
+      window.addEventListener("beforeinstallprompt", function (e) {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+      });
+      window.addEventListener("appinstalled", function () {
+        deferredInstallPrompt = null;
+        state.settings.install = state.settings.install || { off: false };
+        state.settings.install.done = true;
+        save();
+        try { renderMine(); renderToday(); } catch (x) { /* 渲染失败不影响安装 */ }
+      });
+    }
+
     /* 预览/测试用：?open=review 或 ?open=metrics 直接打开对应面板 */
     var open = param("open");
     if (open === "review") openReview(selDate);
@@ -874,6 +1030,10 @@
         weeklyPayload: weeklyPayload,
         localStubReport: localStubReport,
         aiConfig: aiConfig,
+        checkinReminderDue: checkinReminderDue,
+        isStandalone: isStandalone,
+        platformKind: platformKind,
+        installSteps: installSteps,
         dump: function () { return JSON.stringify(state); }
       };
     }

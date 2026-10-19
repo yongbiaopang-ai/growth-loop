@@ -61,6 +61,8 @@ function render(seedState, mutateSeed, opts) {
     URLSearchParams
   };
   sandbox.window = sandbox;
+  if (opts.ua) sandbox.navigator.userAgent = opts.ua;      // 模拟 iOS / Android 判定
+  if (opts.standalone) sandbox.__glForceStandalone = true; // 模拟"已装到主屏"
   vm.createContext(sandbox);
 
   if (opts.withLocal) {
@@ -369,6 +371,37 @@ if (I.__gl) {
   const cfg = I.__gl.aiConfig();
   check("默认没有 Key（不会把 Key 塞进仓库）", cfg.key === "");
 }
+
+/* ---------- J：装到主屏引导 + 到点提醒（M4） ---------- */
+console.log("\n— J 装到主屏与到点提醒 —");
+check("今日页有加主屏引导（未装 + 计划已开始）", A.today.includes("装到手机主屏") && A.today.includes("btn-install-guide2"));
+check("我的页有安装卡片与按钮", A.mine.includes("装到手机主屏") && A.mine.includes('id="btn-install-guide"'));
+check("我的页提醒时间可编辑", A.mine.includes('id="set-reminder"') && A.mine.includes('type="time"') && A.mine.includes('id="btn-remind-save"'));
+check("提醒卡如实说明不能后台推送", A.mine.includes("做不到在你关掉应用后主动推送"));
+
+const J = render(null, null, { search: "?test=1", standalone: true });
+check("已装到主屏时今日页不再提示加主屏", !J.today.includes("装到手机主屏"));
+check("已装时我的页标已装", J.mine.includes("已装"));
+
+const Jios = render(null, null, { search: "?test=1", ua: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15" });
+check("iOS 环境识别正确", !!(Jios.__gl && Jios.__gl.platformKind() === "ios"));
+check("iOS 步骤讲 Safari + 分享", !!(Jios.__gl && Jios.__gl.installSteps().includes("Safari") && Jios.__gl.installSteps().includes("分享")));
+const Jand = render(null, null, { search: "?test=1", ua: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile" });
+check("Android 环境识别正确", !!(Jand.__gl && Jand.__gl.platformKind() === "android"));
+check("Android 步骤讲 Chrome + 菜单", !!(Jand.__gl && Jand.__gl.installSteps().includes("Chrome") && Jand.__gl.installSteps().includes("菜单")));
+
+const Jd = render(null, null, { search: "?test=1" });
+const GJ = Jd.__gl;
+check("无 UA 时回落桌面步骤", !!(GJ && GJ.platformKind() === "desktop" && GJ.installSteps().includes("地址栏")));
+/* 到点提醒是纯函数：注 now，不依赖真实时钟 */
+check("到点后未完成 → 提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 2, total: 5, now: "23:00", reminder: "22:45" })));
+check("没到点 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 2, total: 5, now: "09:00", reminder: "22:45" }) === false));
+check("今天已做完 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 5, total: 5, now: "23:00", reminder: "22:45" }) === false));
+check("计划未开始 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: false, decided: 0, total: 5, now: "23:00", reminder: "22:45" }) === false));
+check("时间格式不对 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 0, total: 5, now: "23:00", reminder: "bad" }) === false));
+
+const Jr = render({ v: 1, settings: { reminder: "00:00" }, baseline: {}, checkins: {}, reviews: {}, metrics: {}, reports: {} });
+check("今日页显示到点提醒横幅", Jr.today.includes("到点了") && Jr.today.includes("还差"));
 
 /* ---------- 自检：这份测试自己不许再写死计划起点 ---------- *
  * 10-19 那次 10 条红就是"写死 PLAN_START + 断言第几周"造成的；修完必须防复发。
