@@ -122,7 +122,9 @@ localStorage 键：`growthloop.v1`
 | M1.5 | 对照真实表的导入器（`tools/xlsx_to_json.py`）+ 合成示例数据 | ✅ v0.4 |
 | M2 | 指标趋势图与录入、周复盘表单、备份往返 | ✅ v0.3 |
 | M3 | AI 周报 + prompt 版本管理 + 21 条评测集 + 应用内周报 | ✅ v0.5 |
-| M4 | 安装引导 + 提醒、10 条 holdout 换模型验证、开源发布 v1.0 | 🚧 进行中（前两项 ✅，发布包待做） |
+| M4 | 安装引导 + 提醒、10 条 holdout 换模型验证、离线 APK、开源发布 v1.0 | 🚧 除"推送到公网"外全部完成（发布包见 [`docs/m4-release-notes.md`](docs/m4-release-notes.md)） |
+
+> **范围变更（相对 v2 需求）**：v2 原文只要 PWA。后来按用户要求追加了**离线 APK 原生壳**（Capacitor，资源内置）和**本周重点可点开的搜索链接**。网页仍然是唯一真源、零依赖、可单独部署；APK 只是其中一种分发产物，删掉打包工程不影响 PWA。完整记账见 [`docs/m4-release-notes.md`](docs/m4-release-notes.md) 第一节。推送到 GitHub 需要一个只有用户本人能做的动作，步骤见 [`docs/github-publish-user-steps.md`](docs/github-publish-user-steps.md)。
 
 ## AI 周报与评测（M3）
 
@@ -196,6 +198,8 @@ MIT，见 [LICENSE](LICENSE)。
 - Zero dependencies, no build step: plain HTML/CSS/JS. Design tokens live in `design/tokens.css`.
 - All data lives in the browser's `localStorage`; nothing is uploaded, no accounts, no analytics.
 - Installable as a PWA (mobile: "Add to Home Screen"), works offline via a service worker. Dark mode included.
+- Optional: an **offline APK** (Capacitor shell with all assets bundled, no server needed) can be built from the same sources — see [`docs/android-apk.md`](docs/android-apk.md).
+- Reminders are honest about the platform: a purely local PWA cannot push after the app is closed, so the app shows an in-app reminder once you open it past your configured time.
 - Edit `seed.js` to change the plan; bump `VERSION` in `sw.js` after changing any static file.
 - Local dev: `python serve.py`, then open the printed LAN URL on your phone. Tests: `node tools/smoke_test.js`.
 
