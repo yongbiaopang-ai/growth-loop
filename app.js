@@ -278,6 +278,31 @@
   }
 
   /* ---------------- 今日 ---------------- */
+  /* ---------------- 本周重点：每条做成可搜索的链接 ---------------- */
+  function searchUrl(text) {
+    var base = S.SEARCH_URL || "https://www.baidu.com/s?wd=";
+    return base + encodeURIComponent(String(text || ""));
+  }
+  function focusRow(key, label, text) {
+    var color = { ai: "var(--ai)", finance: "var(--finance)", book: "var(--english)" }[key] || "var(--brand)";
+    var t = String(text || "");
+    var inner = t
+      ? '<a class="link" href="' + esc(searchUrl(t)) + '" target="_blank" rel="noopener noreferrer">' + esc(t) + '</a>'
+      : "—";
+    return '<div class="kv"><span><span class="dot" style="background:' + color + '"></span> ' + label + '</span><b>' + inner + '</b></div>';
+  }
+  /* 点外部链接：网页里交给浏览器开新标签；APK 里优先用 Capacitor 的 Browser 插件开系统浏览器 */
+  function openExternal(e) {
+    var a = e && (e.currentTarget || e.target);
+    var url = a && a.getAttribute ? a.getAttribute("href") : "";
+    if (!url) return;
+    var cap = window.Capacitor;
+    if (isNativeApp() && cap && cap.Plugins && cap.Plugins.Browser && cap.Plugins.Browser.open) {
+      e.preventDefault();
+      cap.Plugins.Browser.open({ url: url });
+    }
+  }
+
   function renderToday() {
     var t0 = today();
     var isToday = selDate === t0;
@@ -334,11 +359,10 @@
       (streak() > 1 ? '<div class="sub">连续 ' + streak() + ' 天</div>' : "") + '</div></div></div>';
 
     var focus = S.MONTH_FOCUS[stage] || {};
-    if (focus.ai) {
-      html += '<div class="card"><div class="card-title">本周重点</div>' +
-        '<div class="kv"><span><span class="dot" style="background:var(--ai)"></span> AI</span><b>' + focus.ai + '</b></div>' +
-        '<div class="kv"><span><span class="dot" style="background:var(--finance)"></span> 理财</span><b>' + focus.finance + '</b></div>' +
-        '<div class="kv"><span><span class="dot" style="background:var(--english)"></span> 读书</span><b>' + focus.book + '</b></div></div>';
+    if (focus.ai || focus.finance || focus.book) {
+      html += '<div class="card"><div class="card-title">本周重点<span class="tag muted">点条目可搜索</span></div>' +
+        focusRow("ai", "AI", focus.ai) + focusRow("finance", "理财", focus.finance) +
+        focusRow("book", "读书", focus.book) + '</div>';
     }
 
     if (!ts.length) html += '<div class="card sub">今天没有安排，休息日。</div>';
@@ -351,6 +375,9 @@
     bindToday(selDate);
     var ig2 = $("#btn-install-guide2");
     if (ig2) ig2.addEventListener("click", openInstallSheet);
+    Array.prototype.forEach.call(document.querySelectorAll("#view-today a.link"), function (a) {
+      a.addEventListener("click", openExternal);
+    });
   }
 
   function weekStrip(sel) {

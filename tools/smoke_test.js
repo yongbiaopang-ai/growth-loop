@@ -409,6 +409,16 @@ const Jn = render(null, null, { search: "?test=1", native: true });
 check("APK 里不再提示加主屏", !Jn.today.includes("装到手机主屏") && !Jn.mine.includes("btn-install-guide"));
 check("APK 里我的页标为独立离线版", Jn.mine.includes("独立 App 版") && Jn.mine.includes("离线"));
 
+/* ---------- K：本周重点做成可搜索链接（新需求） ---------- */
+console.log("\n— K 本周重点可搜索链接 —");
+const kLinks = (A.today.match(/class="link"/g) || []).length;
+check("本周重点三条都渲染成链接", kLinks >= 3, kLinks + " 条");
+check("链接指向搜索且词条做了 URL 编码", /href="https:\/\/www\.baidu\.com\/s\?wd=%[0-9A-Fa-f]{2}/.test(A.today));
+check("链接在新标签打开并带 noopener", /<a class="link" href="[^"]*" target="_blank" rel="noopener noreferrer">/.test(A.today));
+check("链接文字是词条本身（非空）", /<a class="link"[^>]*>[^<]+<\/a>/.test(A.today));
+check("搜索地址可配置（seed 暴露 SEARCH_URL）", A.SEED.SEARCH_URL === "https://www.baidu.com/s?wd=");
+check("APK 版里同样保留搜索链接", (Jn.today.match(/class="link"/g) || []).length >= 3);
+
 /* ---------- 自检：这份测试自己不许再写死计划起点 ---------- *
  * 10-19 那次 10 条红就是"写死 PLAN_START + 断言第几周"造成的；修完必须防复发。
  * 只查**赋值**形态，注释里提到旧日期不算。 */
