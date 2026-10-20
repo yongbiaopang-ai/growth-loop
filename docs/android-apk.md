@@ -18,7 +18,7 @@ PWA 走"加主屏"依赖一个 https 地址；而把网页**内置进 APK** 可�
 .toolchain/jdk17/                       # Microsoft OpenJDK 17.0.13
 .toolchain/android-sdk/                 # cmdline-tools + platforms + build-tools
 .toolchain/gradle-home/                 # GRADLE_USER_HOME（避免写用户目录）
-.toolchain/home/                        # 伪造的 HOME（debug 签名要写 ~/.android）
+.toolchain/fakehome/                        # 伪造的 HOME（debug 签名要写 ~/.android）
 ```
 
 ## 一次性准备
@@ -29,8 +29,8 @@ PWA 走"加主屏"依赖一个 https 地址；而把网页**内置进 APK** 可�
 #    SDK: https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip
 # 2) 解压 JDK 到 .toolchain/jdk17，解压 cmdline-tools 到 .toolchain/android-sdk/cmdline-tools/latest
 # 3) 接受许可并装组件
-sdkmanager.bat --sdk_root=<...>\android-sdk --licenses
-sdkmanager.bat --sdk_root=<...>\android-sdk "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+sdkmanager.bat --sdk_root=$tc\android-sdk --licenses
+sdkmanager.bat --sdk_root=$tc\android-sdk "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 ```
 
 ## 打包工程
@@ -59,7 +59,7 @@ Copy-Item growth-loop\prompts\weekly_report.v2.md growth-loop-android\www\prompt
 ## 这台机器上必须绕过的四个坑
 
 1. **`curl` 用不了**：沙箱里 schannel 拿不到证书（`SEC_E_NO_CREDENTIALS`）。改用 Python 的 `urllib` 下载。
-2. **`.toolchain/gradle-home` 与 HOME**：默认 Gradle/SDK 会写 `C:\Users\<用户名>\`，沙箱拒绝。所以设 `GRADLE_USER_HOME`，并用 `-Duser.home=` 指向工作区里的假 HOME（debug 签名要写 `~/.android/debug.keystore`）。
+2. **`.toolchain/gradle-home` 与 HOME**：默认 Gradle/SDK 会写 `%USERPROFILE%\`，沙箱拒绝。所以设 `GRADLE_USER_HOME`，并用 `-Duser.home=` 指向工作区里的假 HOME（debug 签名要写 `~/.android/debug.keystore`）。
    - 注意 `-Duser.home` 必须走**命令行参数**，不能写进 `gradle.properties`：Java 的 properties 按 ISO-8859-1 读，中文用户名会乱码。
 3. **Gradle 发行包在 GitHub 上**：`services.gradle.org` 会 302 到 GitHub，而本机解析不了 GitHub。把 `android/gradle/wrapper/gradle-wrapper.properties` 的 `distributionUrl` 改成腾讯镜像：
    `https://mirrors.cloud.tencent.com/gradle/gradle-8.2.1-all.zip`
@@ -68,15 +68,16 @@ Copy-Item growth-loop\prompts\weekly_report.v2.md growth-loop-android\www\prompt
 ## 构建
 
 ```powershell
-$tc = "C:\Users\庞勇彪\.dsh\bot\workspace\.toolchain"
+$ws = "<工作区根目录>"   # 换成你自己的路径：包含 growth-loop/ 的那个目录
+$tc = "$ws\.toolchain"
 $env:JAVA_HOME="$tc\jdk17"; $env:ANDROID_HOME="$tc\android-sdk"; $env:ANDROID_SDK_ROOT="$tc\android-sdk"
 $env:GRADLE_USER_HOME="$tc\gradle-home"
 $env:PATH="$tc\jdk17\bin;$tc\android-sdk\platform-tools;$tc\android-sdk\build-tools\34.0.0;$env:PATH"
 
-cd C:\Users\庞勇彪\.dsh\bot\workspace\growth-loop-android
+cd "$ws\growth-loop-android"
 node node_modules\@capacitor\cli\bin\capacitor sync android
 cd android
-.\gradlew.bat "-Duser.home=$tc/home" assembleDebug --no-daemon --console=plain
+.\gradlew.bat "-Duser.home=$tc/fakehome" assembleDebug --no-daemon --console=plain
 ```
 
 产物：`growth-loop-android\android\app\build\outputs\apk\debug\app-debug.apk`
