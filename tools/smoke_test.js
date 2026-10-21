@@ -61,6 +61,9 @@ function render(seedState, mutateSeed, opts) {
     URLSearchParams
   };
   sandbox.window = sandbox;
+  if (opts.ua) sandbox.navigator.userAgent = opts.ua;      // 模拟 iOS / Android 判定
+  if (opts.standalone) sandbox.__glForceStandalone = true; // 模拟"已装到主屏"
+  if (opts.native) sandbox.Capacitor = { isNativePlatform: () => true };  // 模拟"被装成 APK"
   vm.createContext(sandbox);
 
   if (opts.withLocal) {
@@ -90,6 +93,16 @@ function render(seedState, mutateSeed, opts) {
 const pad = (n) => String(n).padStart(2, "0");
 const d2s = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 const shift = (offset) => { const t = new Date(); return d2s(new Date(t.getFullYear(), t.getMonth(), t.getDate() + offset)); };
+
+/* 时钟无关：所有"第几周"的断言都从**今天**反推 PLAN_START，而不是写死日期。
+ * 教训：这套测试原来把 PLAN_START 写死成 2026-08-17 再断言"第 9 周"，
+ * 计划一开跑（2026-10-19）就整片变红——测试依赖真实时钟，过一周必错。
+ * 现在：要验第 w 周，就把 PLAN_START 设成"本周一往前推 w-1 周"。 */
+const TODAY = d2s(new Date());
+const MON_D = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate() - ((t.getDay() + 6) % 7)); })();
+const planStartForWeek = (w) => d2s(new Date(MON_D.getFullYear(), MON_D.getMonth(), MON_D.getDate() - 7 * (w - 1)));
+const plusDays = (s, n) => { const d = new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10) + n); return d2s(d); };
+const ym = (offset) => { const t = new Date(); const d = new Date(t.getFullYear(), t.getMonth() + offset, 1); return d.getFullYear() + "-" + pad(d.getMonth() + 1); };
 
 /* 把某一天的任务全部标为完成 */
 function fill(checkins, SEED, dateStr) {
@@ -210,7 +223,10 @@ check("计划页显示中性模板数字", A.plan.includes("22% → 15%") && A.p
 check("今日页七天条带", (A.today.match(/data-day=/g) || []).length === 7);
 check("今日页有任务卡", (A.today.match(/class="task/g) || []).length >= 2);
 check("今日页有环形进度", A.today.includes('class="ring"'));
-check("计划未开始提示", A.today.includes("计划未开始") && A.today.includes("距开跑还有"));
+/* "计划未开始"必须拿"未来开始的计划"来测：默认 seed 的 PLAN_START 是 2026-10-19，
+ * 今天已开跑。原来直接拿默认 seed 断言"未开始"，计划一开跑就必错。 */
+const A2 = render(null, (S) => { S.PLAN_START = shift(7); });
+check("计划未开始提示", A2.today.includes("计划未开始") && A2.today.includes("距开跑还有"));
 check("今日页有规则卡", A.today.includes("三条不许破"));
 // 今天还没过完，不该被标成漏卡；只有早于今天的空白才算漏
 const todayCell = (A.today.match(/class="d[^"]*today[^"]*"/) || [""])[0];
@@ -232,15 +248,15 @@ check("渲染不写 localStorage", A.store.size === 0, "键数 " + A.store.size)
 console.log("\n— B 有数据 + 深色主题 —");
 const B = render({
   v: 1,
-  settings: { start: "2026-10-19", theme: "dark", style: "neon", reminder: "22:45", reviewReminder: "21:15" },
+  settings: { start: shift(7), theme: "dark", style: "neon", reminder: "22:45", reviewReminder: "21:15" },
   baseline: { height: "175cm", weight: "70kg", bodyfat: "22%", waist: "88cm", english: "A2", capital: "50万", emergency: "3.0万" },
   checkins: {
-    "2026-10-19": { strength_a: { s: "done", ts: 1760000000000 }, en_listen: { s: "done", ts: 1760000000000 }, ai_block: { s: "mvb", ts: 1760000000000 } },
-    "2026-10-20": { cardio: { s: "done", ts: 1760000000000 }, en_deep: { s: "skip", reason: "加班", ts: 1760000000000 } }
+    [TODAY]: { strength_a: { s: "done", ts: 1760000000000 }, en_listen: { s: "done", ts: 1760000000000 }, ai_block: { s: "mvb", ts: 1760000000000 } },
+    [shift(-1)]: { cardio: { s: "done", ts: 1760000000000 }, en_deep: { s: "skip", reason: "加班", ts: 1760000000000 } }
   },
-  metrics: { "2026-10": { bodyfat: 25, weight: 67 }, "2026-11": { bodyfat: 23, weight: 65.5 } },
-  reviews: { "2026-10-19": { text: "健身 5/5；英语只精听 2 天", ts: 1760000000000 } }
-});
+  metrics: { [ym(0)]: { bodyfat: 25, weight: 67 }, [ym(1)]: { bodyfat: 23, weight: 65.5 } },
+  reviews: { [TODAY]: { text: "健身 5/5；英语只精听 2 天", ts: 1760000000000 } }
+}, (S) => { S.PLAN_START = shift(7); });
 check("趋势页画出折线", B.trend.includes("<polyline"));
 check("趋势页有目标虚线", B.trend.includes("stroke-dasharray"));
 check("趋势页显示最新值", B.trend.includes("最新 23%"));
@@ -253,13 +269,14 @@ check("风格可切换为霓虹", B.style === "neon", B.style);
 
 /* ---------- C：计划进行中 ---------- */
 console.log("\n— C 计划进行中（PLAN_START 前移 9 周）—");
+const WEEK9_START = planStartForWeek(9);
 const cSeed = { v: 1, settings: { theme: "auto" }, checkins: {}, metrics: {}, reviews: {}, baseline: {} };
-const cProbe = render(null, (S) => { S.PLAN_START = "2026-08-17"; });
-for (let i = 0; i < 7; i++) fill(cSeed.checkins, cProbe.SEED, d2s(new Date(2026, 7, 17 + i)));   // 第 1 周打满
+const cProbe = render(null, (S) => { S.PLAN_START = WEEK9_START; });
+for (let i = 0; i < 7; i++) fill(cSeed.checkins, cProbe.SEED, plusDays(WEEK9_START, i));        // 第 1 周打满
 fill(cSeed.checkins, cProbe.SEED, shift(-1));                                                    // 昨天
 fill(cSeed.checkins, cProbe.SEED, shift(-2));                                                    // 前天
 fill(cSeed.checkins, cProbe.SEED, shift(-3));                                                    // 大前天
-const C = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; });
+const C = render(cSeed, (S) => { S.PLAN_START = WEEK9_START; });
 check("周数计算正确（第 9 周）", /第 9 \/ 26 周/.test(C.today), (C.today.match(/第 \d+ \/ \d+ 周/) || [""])[0]);
 check("阶段为 M2", C.today.includes("M2 地基期"));
 check("不再显示计划未开始", !C.today.includes("计划未开始"));
@@ -269,7 +286,8 @@ check("今天未打卡时提示还差项", /还差 \d+ 项/.test(C.today));
 
 /* ---------- D：W4 检查点周 ---------- */
 console.log("\n— D 走到 W4 检查点周 —");
-const D = render(null, (S) => { S.PLAN_START = "2026-09-21"; });
+const WEEK4_START = planStartForWeek(4);
+const D = render(null, (S) => { S.PLAN_START = WEEK4_START; });
 check("周数计算正确（第 4 周）", /第 4 \/ 26 周/.test(D.today), (D.today.match(/第 \d+ \/ \d+ 周/) || [""])[0]);
 check("60% 起步周标记", D.today.includes("60% 起步周"));
 check("减量周标记", D.today.includes("减量周 60%"));
@@ -290,7 +308,7 @@ if (!fs.existsSync(path.join(ROOT, "seed.local.js"))) {
 
 /* ---------- F：周复盘面板 ---------- */
 console.log("\n— F 周复盘面板 —");
-const F = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; }, { search: "?open=review" });
+const F = render(cSeed, (S) => { S.PLAN_START = WEEK9_START; }, { search: "?open=review" });
 check("带本周实际统计", F.sheet.includes("已打卡天") && F.sheet.includes("本周投入") && F.sheet.includes("/7"));
 check("四条线都在表单里", ["健身：", "英语：", "理财：", "AI："].every((s) => F.sheet.includes(s)));
 check("有下周最重要的一件事", F.sheet.includes("下周最重要的一件事"));
@@ -332,13 +350,13 @@ if (H.__gl) {
 
 /* ---------- I：AI 周报（负载 / 本地桩 / 界面） ---------- */
 console.log("\n— I AI 周报 —");
-const I = render(cSeed, (S) => { S.PLAN_START = "2026-08-17"; }, { search: "?test=1" });
+const I = render(cSeed, (S) => { S.PLAN_START = WEEK9_START; }, { search: "?test=1" });
 check("趋势页有 AI 周报卡", I.trend.includes("AI 周报") && I.trend.includes("btn-report"));
 check("未配 Key 时明确标注", I.trend.includes("未配 Key"));
 check("我的页有 AI 配置", I.mine.includes("AI 周报配置") && I.mine.includes("btn-ai-save"));
 check("Key 输入是密码框且不在页面明文回显结构外", I.mine.includes('id="ai-key" type="password"'));
 if (I.__gl) {
-  const p = I.__gl.weeklyPayload("2026-10-13");
+  const p = I.__gl.weeklyPayload(TODAY);
   check("负载字段固定不漂移",
     Object.keys(p).sort().join(",") === "byDomain,checkinDays,hours,metrics,note,plans,totalDays,week",
     Object.keys(p).sort().join(","));
@@ -354,6 +372,59 @@ if (I.__gl) {
   const cfg = I.__gl.aiConfig();
   check("默认没有 Key（不会把 Key 塞进仓库）", cfg.key === "");
 }
+
+/* ---------- J：装到主屏引导 + 到点提醒（M4） ---------- */
+console.log("\n— J 装到主屏与到点提醒 —");
+check("今日页有加主屏引导（未装 + 计划已开始）", A.today.includes("装到手机主屏") && A.today.includes("btn-install-guide2"));
+check("我的页有安装卡片与按钮", A.mine.includes("装到手机主屏") && A.mine.includes('id="btn-install-guide"'));
+check("我的页提醒时间可编辑", A.mine.includes('id="set-reminder"') && A.mine.includes('type="time"') && A.mine.includes('id="btn-remind-save"'));
+check("提醒卡如实说明不能后台推送", A.mine.includes("做不到在你关掉应用后主动推送"));
+
+const J = render(null, null, { search: "?test=1", standalone: true });
+check("已装到主屏时今日页不再提示加主屏", !J.today.includes("装到手机主屏"));
+check("已装时我的页标已装", J.mine.includes("已装"));
+
+const Jios = render(null, null, { search: "?test=1", ua: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15" });
+check("iOS 环境识别正确", !!(Jios.__gl && Jios.__gl.platformKind() === "ios"));
+check("iOS 步骤讲 Safari + 分享", !!(Jios.__gl && Jios.__gl.installSteps().includes("Safari") && Jios.__gl.installSteps().includes("分享")));
+const Jand = render(null, null, { search: "?test=1", ua: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile" });
+check("Android 环境识别正确", !!(Jand.__gl && Jand.__gl.platformKind() === "android"));
+check("Android 步骤讲 Chrome + 菜单", !!(Jand.__gl && Jand.__gl.installSteps().includes("Chrome") && Jand.__gl.installSteps().includes("菜单")));
+
+const Jd = render(null, null, { search: "?test=1" });
+const GJ = Jd.__gl;
+check("无 UA 时回落桌面步骤", !!(GJ && GJ.platformKind() === "desktop" && GJ.installSteps().includes("地址栏")));
+/* 到点提醒是纯函数：注 now，不依赖真实时钟 */
+check("到点后未完成 → 提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 2, total: 5, now: "23:00", reminder: "22:45" })));
+check("没到点 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 2, total: 5, now: "09:00", reminder: "22:45" }) === false));
+check("今天已做完 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 5, total: 5, now: "23:00", reminder: "22:45" }) === false));
+check("计划未开始 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: false, decided: 0, total: 5, now: "23:00", reminder: "22:45" }) === false));
+check("时间格式不对 → 不提醒", !!(GJ && GJ.checkinReminderDue({ planStarted: true, decided: 0, total: 5, now: "23:00", reminder: "bad" }) === false));
+
+const Jr = render({ v: 1, settings: { reminder: "00:00" }, baseline: {}, checkins: {}, reviews: {}, metrics: {}, reports: {} });
+check("今日页显示到点提醒横幅", Jr.today.includes("到点了") && Jr.today.includes("还差"));
+
+/* APK（原生壳）里不该再引导"加主屏"：它本来就是独立 App */
+const Jn = render(null, null, { search: "?test=1", native: true });
+check("APK 里不再提示加主屏", !Jn.today.includes("装到手机主屏") && !Jn.mine.includes("btn-install-guide"));
+check("APK 里我的页标为独立离线版", Jn.mine.includes("独立 App 版") && Jn.mine.includes("离线"));
+
+/* ---------- K：本周重点做成可搜索链接（新需求） ---------- */
+console.log("\n— K 本周重点可搜索链接 —");
+const kLinks = (A.today.match(/class="link"/g) || []).length;
+check("本周重点三条都渲染成链接", kLinks >= 3, kLinks + " 条");
+check("链接指向搜索且词条做了 URL 编码", /href="https:\/\/www\.baidu\.com\/s\?wd=%[0-9A-Fa-f]{2}/.test(A.today));
+check("链接在新标签打开并带 noopener", /<a class="link" href="[^"]*" target="_blank" rel="noopener noreferrer">/.test(A.today));
+check("链接文字是词条本身（非空）", /<a class="link"[^>]*>[^<]+<\/a>/.test(A.today));
+check("搜索地址可配置（seed 暴露 SEARCH_URL）", A.SEED.SEARCH_URL === "https://www.baidu.com/s?wd=");
+check("APK 版里同样保留搜索链接", (Jn.today.match(/class="link"/g) || []).length >= 3);
+
+/* ---------- 自检：这份测试自己不许再写死计划起点 ---------- *
+ * 10-19 那次 10 条红就是"写死 PLAN_START + 断言第几周"造成的；修完必须防复发。
+ * 只查**赋值**形态，注释里提到旧日期不算。 */
+const selfSrc = fs.readFileSync(__filename, "utf8");
+const frozenStarts = (selfSrc.match(/PLAN_START\s*=\s*"\d{4}-\d{2}-\d{2}"/g) || []);
+check("测试自身不写死 PLAN_START（防时钟依赖复发）", frozenStarts.length === 0, frozenStarts.join("；"));
 
 /* ---------- 备份往返 ---------- */
 console.log("\n— 备份往返 —");

@@ -210,3 +210,10 @@ nav.tabs {
 .sheet-btn .h { display: block; font-size: var(--fs-sub); color: var(--muted); margin-top: 2px; font-weight: 400; }
 .sheet-btn.cancel { text-align: center; color: var(--muted); font-weight: 500; }
 .sheet-btn.primary { background: var(--brand-grad); border-color: transparent; color: #fff; text-align: center; box-shadow: var(--glow); }
+
+/* 本周重点：点条目 -> 浏览器搜索该词条 */
+.kv b a.link {
+  color: var(--brand); text-decoration: underline; text-decoration-thickness: 1px;
+  text-underline-offset: 3px; cursor: pointer;
+}
+.kv b a.link:active { opacity: .6; }

@@ -10,10 +10,10 @@
 # 新增截图忘记登记、或登记了不存在的文件，都会 FAIL。
 #
 # 重新出图请用中性模板：index.html?local=0（避免把个人数字烧进图片）。
+# 截图集合固定为下面 3 张 UI 图 + 2 张图标，只在发布节点重出（见 docs/m4-release-notes.md 第四节）。
 
 design/preview-ai.png
 design/preview-app.png
 design/preview-styles.png
-design/preview-v1.png
 icons/icon-192.png
 icons/icon-512.png

@@ -13,6 +13,8 @@ window.SEED = (function () {
 
   var PLAN_START = "2026-10-19"; // W1 周一
   var PLAN_WEEKS = 26;
+  /* 本周重点点开时的搜索地址前缀。想换必应/谷歌就改这里（词条会做 URL 编码）。 */
+  var SEARCH_URL = "https://www.baidu.com/s?wd=";
 
   /* 会被 seed.local.js 覆盖的个性化文案。默认值全是通用示例。 */
   var NEUTRAL = {
@@ -166,6 +168,7 @@ window.SEED = (function () {
   return {
     PLAN_START: PLAN_START,
     PLAN_WEEKS: PLAN_WEEKS,
+    SEARCH_URL: SEARCH_URL,
     DOMAINS: DOMAINS,
     WEEK_TEMPLATE: WEEK_TEMPLATE,
     STAGES: STAGES,

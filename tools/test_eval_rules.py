@@ -141,6 +141,24 @@ c_old, _ = old_flag_anomaly(NAMED, a1, al1)
 c_new, m_new2 = E.rule_flag_anomaly(NAMED, a1, al1)
 check("对照：点名了数值，旧新都通过", c_old is True and c_new is True, m_new2)
 
+# workbuddy 复核 anomaly-02 裁定后留下的常驻回归样本：真机第 2 次输出的原文。
+# 它点名了两个数（7 与 9）并写"两个数字互相矛盾"，是**合格**的异常识别，
+# 却曾被只有「异常/请核对」的词表判失败。所以接受集补"矛盾类"词；
+# 但"必须点名数值"那道门槛不动——只复述两个数、不点明矛盾的写法仍必须失败。
+a2 = BY_ID["anomaly-02"]
+al2 = E.allowed_numbers(a2)
+CONTRADICT = "输入的应打卡天数为 7 天、打卡为 9 天，两个数字互相矛盾，缺口落在哪几天无法判断。"
+RESTATE = "本周打卡 9 天（应打卡 7 天），投入 25 小时。"
+NO_NUM = "打卡天数和应打卡天数两个数字对不上，无法判断。"
+o_old, _ = old_flag_anomaly(CONTRADICT, a2, al2)
+o_new, m_new = E.rule_flag_anomaly(CONTRADICT, a2, al2)
+check("旧词表误判「两个数字互相矛盾」（real 真机 output[2] 原文）", o_old is False)
+check("现行词表判它通过（矛盾类词已入接受集）", o_new is True, m_new)
+c1, _ = E.rule_flag_anomaly(RESTATE, a2, al2)
+check("对照：只复述两个数、不点明矛盾，仍失败", c1 is False)
+c2, m2 = E.rule_flag_anomaly(NO_NUM, a2, al2)
+check("对照：说了「对不上」但没点名数值，仍失败（点名门槛没松）", c2 is False, m2)
+
 # ---------- 5. 编造数字：行首列表编号被误判成编造 ----------
 print("\n— 5 编造数字规则：模型按「严格三段」编号就被误判 —")
 n1 = BY_ID["normal-01"]

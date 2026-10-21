@@ -28,6 +28,8 @@ PWA 要跑在 https 上离线能力才完整。最省事的方式是用 GitHub P
 
 > 数据存在手机浏览器里，换手机或清理浏览器数据会丢。请每周日在「我的」页导出一次备份。
 
+**不想依赖任何网络？** 也可以把网页资源整个打进一个离线 APK：装到手机上之后不连 Wi-Fi、不连电脑、不依赖任何服务器。打包步骤（含这台机器上要绕过的坑）写在 [`docs/android-apk.md`](docs/android-apk.md)，已实测可打出约 3.6 MB 的安装包。
+
 ## 本地开发
 
 ```bash
@@ -119,8 +121,10 @@ localStorage 键：`growthloop.v1`
 | M1 | 今日页 + 七天条带补卡 + 计划页 + 我的页 + 空/未开始状态 + 深色模式 | ✅ v0.2 |
 | M1.5 | 对照真实表的导入器（`tools/xlsx_to_json.py`）+ 合成示例数据 | ✅ v0.4 |
 | M2 | 指标趋势图与录入、周复盘表单、备份往返 | ✅ v0.3 |
-| M3 | AI 周报 + prompt 版本管理 + 21 条评测集 + 应用内周报 | ✅ 分支 `m3-ai-weekly`（v0.5 待复核合并） |
-| M4 | 提醒引导、安装引导、开源发布 v1.0 | ⬜ |
+| M3 | AI 周报 + prompt 版本管理 + 21 条评测集 + 应用内周报 | ✅ v0.5 |
+| M4 | 安装引导 + 提醒、10 条 holdout 换模型验证、离线 APK、开源发布 v1.0 | 🚧 除"推送到公网"外全部完成（发布包见 [`docs/m4-release-notes.md`](docs/m4-release-notes.md)） |
+
+> **范围变更（相对 v2 需求）**：v2 原文只要 PWA。后来按用户要求追加了**离线 APK 原生壳**（Capacitor，资源内置）和**本周重点可点开的搜索链接**。网页仍然是唯一真源、零依赖、可单独部署；APK 只是其中一种分发产物，删掉打包工程不影响 PWA。完整记账见 [`docs/m4-release-notes.md`](docs/m4-release-notes.md) 第一节。推送到 GitHub 需要一个只有用户本人能做的动作，步骤见 [`docs/github-publish-user-steps.md`](docs/github-publish-user-steps.md)。
 
 ## AI 周报与评测（M3）
 
@@ -147,6 +151,12 @@ GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real --repeat 3 \
 - **Key 绝不进仓库**：命令行侧只读环境变量 `GL_LLM_KEY`；应用侧由你自己在「我的 → AI」里填，只存本机 localStorage。token 与费用写到 gitignored 的 `evals/.cost.local.json`（这就是"每百万 token 成本"那项交付物）。
 - **评测集本身也受红线约束**：用例、桩输出、回放素材全部使用中性示例数字，不含任何个人数据。
 
+## 装到手机与提醒（M4）
+
+- **应用内安装引导**：今日页在"还没装到主屏"时给一条引导（可点「不再提示」）；「我的 → 装到手机主屏」会**按平台给步骤**——iPhone 用 Safari 的分享菜单 → 添加到主屏幕；Android 用 Chrome 菜单 → 添加到主屏幕 / 安装应用；电脑用地址栏的安装图标。装没装它自己知道（同时看 `display-mode: standalone` 和 iOS 的 `navigator.standalone`），装好后不再提示，我的页标「已装」。
+- **提醒的边界（如实写，不吹）**：纯本地 PWA **做不到**在你关掉应用之后主动推送——那需要服务器推送，与"数据不出设备"冲突。所以这里做的是**打开应用时的到点提醒**：过了你在「我的 → 提醒」里设的时间、且今天还有没做完的项，今日页顶部会出现提示。要严格准时，请同时用手机自带闹钟兜底。这句话在应用界面上也写着，不只在 README 里。
+- 这两处都进了冒烟测试的 J 段：安装引导按平台给步骤、已装后不再提示、到点提醒用**注入的时间**验证（不依赖真实时钟——10-19 那批"过一天就红"的测试就是反面教材）。
+
 ## 发布前检查清单（M4）
 
 - [ ] **在 `main` 上**跑一次完整 `python tools/check_all.py`。工作流守卫只在 main 上执行，在里程碑分支上会 SKIP——只在分支跑就等于没跑过。
@@ -154,7 +164,10 @@ GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real --repeat 3 \
 - [ ] **人工看图**：按 [`docs/binary-artifacts.txt`](docs/binary-artifacts.txt) 的清单逐张肉眼确认没有个人数字。文本扫描对二进制图片是**双向失效**的（既会漏真数字，也会因压缩字节误报），这一步只能靠眼睛，且**由作者之外的人执行**——自证不算验收。
 - [ ] 权威口径零命中：追踪文本文件里不得有盘符绝对路径、类 Unix 家目录前缀、本机用户名、个人值。
 - [ ] 在一台全新机器上按 README 能跑起来（含 PWA 安装路径）。
-- [ ] README 中英双语完整、截图与当前版本一致。
+- [ ] **真机走一遍安装路径**：iOS Safari 与 Android Chrome 各一次，确认加主屏后全屏无地址栏、深色跟随系统（这条只能人做）。
+- [ ] README 中英双语完整。
+- [ ] **截图与当前 UI 一致**：判定标准是截图文件时间戳晚于 `app.js` / `app.css`；集合固定为 3 张 UI 截图（清单见 [`docs/m4-release-notes.md`](docs/m4-release-notes.md) 第四节），只在发布节点重出。
+- [ ] **发布路径只有"用户本地 push"一条**：本机到 GitHub 的 TLS 握手失败（**不是 DNS 问题**，别改 hosts），步骤见 [`docs/github-publish-user-steps.md`](docs/github-publish-user-steps.md)。
 
 ## 刻意不做
 
@@ -187,6 +200,8 @@ MIT，见 [LICENSE](LICENSE)。
 - Zero dependencies, no build step: plain HTML/CSS/JS. Design tokens live in `design/tokens.css`.
 - All data lives in the browser's `localStorage`; nothing is uploaded, no accounts, no analytics.
 - Installable as a PWA (mobile: "Add to Home Screen"), works offline via a service worker. Dark mode included.
+- Optional: an **offline APK** (Capacitor shell with all assets bundled, no server needed) can be built from the same sources — see [`docs/android-apk.md`](docs/android-apk.md).
+- Reminders are honest about the platform: a purely local PWA cannot push after the app is closed, so the app shows an in-app reminder once you open it past your configured time.
 - Edit `seed.js` to change the plan; bump `VERSION` in `sw.js` after changing any static file.
 - Local dev: `python serve.py`, then open the printed LAN URL on your phone. Tests: `node tools/smoke_test.js`.
 
