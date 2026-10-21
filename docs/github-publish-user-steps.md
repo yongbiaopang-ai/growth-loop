@@ -2,7 +2,7 @@
 
 这一步**只能由你本人完成**，原因有两个，先说清楚：
 
-1. **本机连不上 github.com**（域名解析失败）。所以无论谁来做，我这里都推不上去。
+1. **本机到 GitHub 的 TLS 握手失败**。实测：`github.com` 能解析（A 记录可达）、`TCP 443` 能连，但 TLS 层报 `schannel: AcquireCredentialsHandle failed: SEC_E_NO_CREDENTIALS`。所以无论谁来做，我这里都推不上去——**注意这是 TLS 失败、不是 DNS 失败**，别去改 hosts / DNS，那条路是错的。所以无论谁来做，我这里都推不上去。
 2. **凭据不能由我造、也不能代持**。开源的推送权限是你的账号权利，不是项目资产。
 
 下面两条路，选一条即可。
@@ -50,7 +50,7 @@ https://<你的用户名>.github.io/growth-loop/
 4. **推完你立刻去 GitHub 撤销这个 token**（Settings → Developer settings → Personal access tokens）。
 5. 然后你自己按路线 A 的第 3 步开 Pages（这一步需要账号界面操作，token 权限不够；或者你把 Pages 也授权给我，但我不建议扩大权限）。
 
-> 我这台机器连不上 github.com，所以路线 B 实际也推不上去 —— 除非网络环境变化。**先按路线 A 做，最稳。**
+> 同样因为**本机 TLS 握手失败**，路线 B 在这台机器上实际也推不上去。它是留给"网络环境变化之后"的备用方案——**现在先按路线 A 做，最稳。**
 
 ---
 

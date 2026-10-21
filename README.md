@@ -165,7 +165,9 @@ GL_LLM_KEY=... python tools/eval_weekly_report.py --mode real --repeat 3 \
 - [ ] 权威口径零命中：追踪文本文件里不得有盘符绝对路径、类 Unix 家目录前缀、本机用户名、个人值。
 - [ ] 在一台全新机器上按 README 能跑起来（含 PWA 安装路径）。
 - [ ] **真机走一遍安装路径**：iOS Safari 与 Android Chrome 各一次，确认加主屏后全屏无地址栏、深色跟随系统（这条只能人做）。
-- [ ] README 中英双语完整、截图与当前版本一致。
+- [ ] README 中英双语完整。
+- [ ] **截图与当前 UI 一致**：判定标准是截图文件时间戳晚于 `app.js` / `app.css`；集合固定为 3 张 UI 截图（清单见 [`docs/m4-release-notes.md`](docs/m4-release-notes.md) 第四节），只在发布节点重出。
+- [ ] **发布路径只有"用户本地 push"一条**：本机到 GitHub 的 TLS 握手失败（**不是 DNS 问题**，别改 hosts），步骤见 [`docs/github-publish-user-steps.md`](docs/github-publish-user-steps.md)。
 
 ## 刻意不做
 
