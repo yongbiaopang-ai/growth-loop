@@ -419,6 +419,11 @@ check("链接文字是词条本身（非空）", /<a class="link"[^>]*>[^<]+<\/a
 check("搜索地址可配置（seed 暴露 SEARCH_URL）", A.SEED.SEARCH_URL === "https://www.baidu.com/s?wd=");
 check("APK 版里同样保留搜索链接", (Jn.today.match(/class="link"/g) || []).length >= 3);
 
+/* 本地服务必须是多线程：preview 页一次加载多个 iframe，单线程会排队导致渲染不全 */
+const serveSrc = fs.readFileSync(path.join(ROOT, "serve.py"), "utf8");
+check("serve.py 用多线程服务（防多 iframe 页偶发空白）",
+  serveSrc.includes("ThreadingHTTPServer") && !/socketserver\.TCPServer\s*\(/.test(serveSrc));
+
 /* ---------- 自检：这份测试自己不许再写死计划起点 ---------- *
  * 10-19 那次 10 条红就是"写死 PLAN_START + 断言第几周"造成的；修完必须防复发。
  * 只查**赋值**形态，注释里提到旧日期不算。 */
