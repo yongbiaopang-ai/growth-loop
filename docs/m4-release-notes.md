@@ -53,7 +53,7 @@ v2 需求（`WorkBuddy_需求提示词_v2.md`）的形态是 **PWA**：手机浏
 2. **APK 是 debug 签名**——这是有意的，不是没做完。v1 定位是自用 + 开源，debug 签名足够自己装；对外分发应让使用者自己按 `docs/android-apk.md` 构建。**自建 release keystore 会引入一套新的凭据管理面，且 keystore 一旦丢失、同包名以后无法升级**——这个代价只在"决定对外分发 APK"时才值得付。backlog，触发条件：决定把 APK 作为对外分发物时再做。
 3. **holdout 只是 10 条、单温度**，且 v2 是在同一套 21 条上调过参的；M5 要换新 holdout 并至少再跑一个模型（见 `docs/m4-holdout-report.md`）。
 4. **本机 Android 模拟器未完成，但不属于 M4，也不为它申请扩权**：SDK / AVD / WHPX 全部就绪（emulator 日志确认 "Windows Hypervisor Platform accelerator is operational"），但进程在启用加速后**静默退出**，5554/5555 从未监听、adb 看不到设备；与 headless Chrome 那次属同一类受限沙箱边界（本地套接字/管道），不是配置错误。用户真机已验证可用，所以不阻塞发布。这是"用户新需求 2"的可选后续，值不值得做由用户定；要绕过要么一次性更宽权限重试，要么在 Android Studio 里跑 AVD。
-5. **本机到 GitHub 的 TLS 握手失败**（`schannel: SEC_E_NO_CREDENTIALS`；DNS 能解析、443 能连，**不是 DNS 问题，别去改 hosts**）。因此 v1 的唯一发布路径是**用户在自己机器上 push**，步骤见 [`github-publish-user-steps.md`](github-publish-user-steps.md)。
+5. **本机出网不可达（系统代理 `127.0.0.1:7897` 未运行）**：表现为 HTTPS 超时、`git` 报 `schannel` 凭据失败。**不是 DNS 问题**（`github.com` 能解析、443 能连），也不是 TLS 配置错误——代理没开时不必重试 push。恢复顺序：用户开代理 → workbuddy 先验证连通 → 再向用户要**单仓库权限的 fine-grained token** 转交 → 之后才执行 push。完整顺序、可复制命令与推送后 6 条验证见 [`github-publish-user-steps.md`](github-publish-user-steps.md)。
 
 ## 六、发布后要验证什么
 
