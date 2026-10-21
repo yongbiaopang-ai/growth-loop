@@ -704,7 +704,7 @@
       '<div class="sub">数据只在这台设备。建议每周日导出一次。</div></div>';
 
     html += '<div class="card"><div class="card-title">关于</div>' +
-      '<div class="sub">Growth Loop v0.5 · 本地优先 · MIT 开源<br>打卡 ' + Object.keys(state.checkins).length +
+      '<div class="sub">Growth Loop v0.6 · 本地优先 · MIT 开源<br>打卡 ' + Object.keys(state.checkins).length +
       ' 天 · 记录 ' + Object.keys(state.metrics).length + ' 个月指标</div>' +
       '<button class="btn wide danger" id="btn-clear">清空所有数据</button></div>';
 
