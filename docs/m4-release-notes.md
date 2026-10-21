@@ -61,3 +61,15 @@ v2 需求（`WorkBuddy_需求提示词_v2.md`）的形态是 **PWA**：手机浏
 2. 首次打开不报错；打卡一条 → 关掉应用 → 重新打开数据还在。
 3. 深色模式跟随系统。
 4. 页面源码在公网可读，但里面**没有任何个人数据**（红线在本地已自动验证过；公网再抽查一次）。
+
+## 七、推送后验收清单（给执行推送的人逐条核对）
+
+推送的两个 ref：**`main`** + **所有 tags（v0.2 ~ v0.6）**。
+
+1. **提交与 tag 到位**：`git ls-remote --heads origin main` 的哈希 == 本地 `git rev-parse main`；`git ls-remote --tags origin` 能看到 v0.2 ~ v0.6；tag `v0.6` 指向 `main` 当前提交。
+2. **仓库首页 README 渲染正常**：标题、特性列表、表格（路线图/里程碑）、代码块、相对链接（`docs/...`）都能点开；没有乱码。
+3. **LICENSE 被识别为 MIT**：仓库首页右侧显示 "MIT license"；`LICENSE` 文件可打开且是标准 MIT 全文（版权行 `Copyright (c) 2026 Growth Loop contributors`）。
+4. **仓库内不该有的东西**：`seed.local.js` 不存在、没有 `*.apk`、没有 `node_modules/`、没有个人数字（抽查 `seed.js` 与文档）。
+5. **GitHub Pages**：Settings → Pages 里 Source 为 `main` / `(root)`，构建成功；访问 `https://<用户名>.github.io/growth-loop/` 能打开，控制台无报错；手机加主屏后全屏、无地址栏（这一条只能人确认）。
+6. **APK 是否作为 Release 附件**——**建议：本次不放**。理由：现在只有 debug 签名（只适合自己装），对外分发需要 release keystore，而 keystore 丢失会导致同包名无法升级；等"决定对外分发 APK"时再按 `docs/android-apk.md` 构建 release 版并挂 Release。若坚持要放，需在 Release 说明里明确写"debug 签名、仅供自测"。
+7. **清理凭据**：如果推送时用了带 token 的 URL，推完确认 `git remote -v` 里没有 token、并在 GitHub 上撤销该 token。
